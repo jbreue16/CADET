@@ -35,6 +35,170 @@ namespace cadet
 	namespace model
 	{
 
+		namespace detail
+		{
+			struct Weno3Coefficients
+			{
+				std::vector<active> q_1_right_coeff;
+				std::vector<active> q_0_right_coeff;
+				std::vector<active> C_right_coeff;
+				std::vector<active> IS_0_coeff;
+				std::vector<active> IS_1_coeff;
+
+				Weno3Coefficients(const std::vector<active>& binSizes)
+					: q_1_right_coeff(binSizes.size() - 1), q_0_right_coeff(binSizes.size() - 1), C_right_coeff(binSizes.size() - 1), IS_0_coeff(binSizes.size() - 1), IS_1_coeff(binSizes.size() - 1)
+				{
+					// calculate the coefficients and store them, the first entry is 0
+					for (int i = 1; i + 1 < binSizes.size(); ++i)
+					{
+						const active delta_sum = binSizes[i] + binSizes[i - 1] + binSizes[i + 1];
+						const active delta_left_sum = binSizes[i] + binSizes[i - 1];
+						const active delta_right_sum = binSizes[i] + binSizes[i + 1];
+						q_0_right_coeff[i] = binSizes[i + 1] / delta_right_sum;
+						q_1_right_coeff[i] = 1.0 + binSizes[i] / delta_left_sum;
+						C_right_coeff[i] = delta_left_sum / delta_sum;
+						IS_0_coeff[i] = (2.0 * binSizes[i] / delta_right_sum) * (2.0 * binSizes[i] / delta_right_sum);
+						IS_1_coeff[i] = (2.0 * binSizes[i] / delta_left_sum) * (2.0 * binSizes[i] / delta_left_sum);
+					}
+				}
+			};
+
+			struct Weno5Coefficients
+			{
+				std::vector<active> q_2_coeff_1;
+				std::vector<active> q_2_coeff_2;
+				std::vector<active> q_1_coeff_1;
+				std::vector<active> q_1_coeff_2;
+				std::vector<active> q_0_coeff_1;
+				std::vector<active> q_0_coeff_2;
+				std::vector<active> C_0;
+				std::vector<active> C_1;
+				std::vector<active> C_2;
+				std::vector<active> IS_0_coeff_1;
+				std::vector<active> IS_0_coeff_2;
+				std::vector<active> IS_0_coeff_3;
+				std::vector<active> IS_1_coeff_1;
+				std::vector<active> IS_1_coeff_2;
+				std::vector<active> IS_1_coeff_3;
+				std::vector<active> IS_2_coeff_1;
+				std::vector<active> IS_2_coeff_2;
+				std::vector<active> IS_2_coeff_3;
+
+				// weno3 parameters, left
+				active IS_0_coeff_weno3;
+				active IS_1_coeff_weno3;
+				active C_coeff1_weno3;
+				active C_coeff2_weno3;
+				active q0_coeff1_weno3;
+				active q0_coeff2_weno3;
+				active q1_coeff1_weno3;
+				active q1_coeff2_weno3;
+				// weno3 parameters, right
+				active IS_0_coeff_weno3_r;
+				active IS_1_coeff_weno3_r;
+				active C_coeff1_weno3_r;
+				active C_coeff2_weno3_r;
+				active q0_coeff1_weno3_r;
+				active q0_coeff2_weno3_r;
+				active q1_coeff1_weno3_r;
+				active q1_coeff2_weno3_r;
+
+				Weno5Coefficients(const std::vector<active>& binSizes)
+					: q_2_coeff_1(binSizes.size() - 2), q_2_coeff_2(binSizes.size() - 2), q_1_coeff_1(binSizes.size() - 2),
+					  q_1_coeff_2(binSizes.size() - 2), q_0_coeff_1(binSizes.size() - 2), q_0_coeff_2(binSizes.size() - 2),
+					  C_0(binSizes.size() - 2), C_1(binSizes.size() - 2), C_2(binSizes.size() - 2),
+					  IS_0_coeff_1(binSizes.size() - 2), IS_0_coeff_2(binSizes.size() - 2),  IS_0_coeff_3(binSizes.size() - 2),
+					  IS_1_coeff_1(binSizes.size() - 2), IS_1_coeff_2(binSizes.size() - 2), IS_1_coeff_3(binSizes.size() - 2),
+					  IS_2_coeff_1(binSizes.size() - 2), IS_2_coeff_2(binSizes.size() - 2), IS_2_coeff_3(binSizes.size() - 2)
+				{
+					// calculate the coefficients and store them, the first entry is 0
+					for (int i = 2; i + 2 < binSizes.size(); ++i)
+					{
+						const active delta_sum = binSizes[i - 2] + binSizes[i - 1] + binSizes[i] + binSizes[i + 1] + binSizes[i + 2];
+						const active delta_sum_I0 = binSizes[i - 2] + binSizes[i - 1] + binSizes[i];
+						const active delta_sum_I1 = binSizes[i - 1] + binSizes[i] + binSizes[i + 1];
+						const active delta_sum_I2 = binSizes[i] + binSizes[i + 1] + binSizes[i + 2];
+						q_0_coeff_1[i] = binSizes[i + 1] * (delta_sum_I2 - binSizes[i]) / (delta_sum_I2 - binSizes[i + 2]) / delta_sum_I2;
+						q_0_coeff_2[i] = binSizes[i + 1] * binSizes[i] / delta_sum_I2 / (delta_sum_I2 - binSizes[i]);
+						q_1_coeff_1[i] = binSizes[i] * (delta_sum_I1 - binSizes[i + 1]) / delta_sum_I1 / (delta_sum_I1 - binSizes[i - 1]);
+						q_1_coeff_2[i] = binSizes[i] * binSizes[i + 1] / delta_sum_I1 / (delta_sum_I1 - binSizes[i + 1]);
+						q_2_coeff_1[i] = binSizes[i] * (delta_sum_I0 - binSizes[i - 2]) / delta_sum_I0 / (delta_sum_I0 - binSizes[i]);
+						q_2_coeff_2[i] = 1.0 + binSizes[i] / (binSizes[i - 1] + binSizes[i]) + binSizes[i] / delta_sum_I0;
+						C_0[i] = delta_sum_I0 * (delta_sum_I0 - binSizes[i - 2]) / delta_sum / (delta_sum - binSizes[i - 2]);
+						C_1[i] = delta_sum_I0 / delta_sum * (delta_sum_I2 - binSizes[i]) / (binSizes[i - 1] + delta_sum_I2) * (1.0 + (delta_sum - binSizes[i - 2]) / (delta_sum - binSizes[i + 2]));
+						C_2[i] = binSizes[i + 1] * (binSizes[i + 1] + binSizes[i + 2]) / delta_sum / (delta_sum - binSizes[i + 2]);
+						const active IS_0_pre = 4.0 * (binSizes[i] / delta_sum_I2) * (binSizes[i] / delta_sum_I2);
+						IS_0_coeff_1[i] = IS_0_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i + 1] * (binSizes[i] + binSizes[i + 1])) / (binSizes[i + 1] + binSizes[i + 2]) / (binSizes[i + 1] + binSizes[i + 2]);
+						IS_0_coeff_2[i] = IS_0_pre * (20.0 * binSizes[i] * binSizes[i] + 2.0 * binSizes[i + 1] * (binSizes[i] + binSizes[i + 1]) + (2.0 * binSizes[i + 1] + binSizes[i]) * delta_sum_I2) / (binSizes[i + 1] + binSizes[i + 2]) / (binSizes[i + 1] + binSizes[i]);
+						IS_0_coeff_3[i] = IS_0_pre * (10.0 * binSizes[i] * binSizes[i] + (2.0 * delta_sum_I2 - binSizes[i + 2]) * (delta_sum_I2 + binSizes[i + 1])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i + 1]);
+						const active IS_1_pre = 4.0 * (binSizes[i] / delta_sum_I1) * (binSizes[i] / delta_sum_I1);
+						IS_1_coeff_1[i] = IS_1_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i + 1] * (binSizes[i] + binSizes[i + 1])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 1] + binSizes[i]);
+						IS_1_coeff_2[i] = IS_1_pre * (20.0 * binSizes[i] * binSizes[i] - binSizes[i + 1] * binSizes[i - 1] - (binSizes[i] + binSizes[i + 1]) * (binSizes[i] + binSizes[i - 1])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i - 1]);
+						IS_1_coeff_3[i] = IS_1_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i - 1] * (binSizes[i - 1] + binSizes[i])) / (binSizes[i] + binSizes[i + 1]) / (binSizes[i] + binSizes[i + 1]);
+						const active IS_2_pre = 4.0 * (binSizes[i] / delta_sum_I0) * (binSizes[i] / delta_sum_I0);
+						IS_2_coeff_1[i] = IS_2_pre * (10.0 * binSizes[i] * binSizes[i] + binSizes[i - 1] * (binSizes[i - 1] + binSizes[i])) / (binSizes[i - 2] + binSizes[i - 1]) / (binSizes[i - 2] + binSizes[i - 1]);
+						IS_2_coeff_2[i] = IS_2_pre * (20.0 * binSizes[i] * binSizes[i] + 2.0 * binSizes[i - 1] * (binSizes[i - 1] + binSizes[i]) + delta_sum_I0 * (2.0 * binSizes[i - 1] + binSizes[i])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 2] + binSizes[i - 1]);
+						IS_2_coeff_3[i] = IS_2_pre * (10.0 * binSizes[i] * binSizes[i] + (2.0 * delta_sum_I0 - binSizes[i - 2]) * (delta_sum_I0 + binSizes[i - 1])) / (binSizes[i - 1] + binSizes[i]) / (binSizes[i - 1] + binSizes[i]);
+					}				
+
+					const int nBins = binSizes.size();
+					IS_0_coeff_weno3 = 4.0 * binSizes[1] * binSizes[1] / (binSizes[1] + binSizes[2]) / (binSizes[1] + binSizes[2]);
+					IS_1_coeff_weno3 = 4.0 * binSizes[1] * binSizes[1] / (binSizes[0] + binSizes[1]) / (binSizes[0] + binSizes[1]);
+					C_coeff1_weno3 = (binSizes[0] + binSizes[1]) / (binSizes[0] + binSizes[1] + binSizes[2]);
+					C_coeff2_weno3 = 1.0 - (C_coeff1_weno3);
+					q0_coeff1_weno3 = binSizes[2] / (binSizes[1] + binSizes[2]);
+					q0_coeff2_weno3 = 1.0 - (q0_coeff1_weno3);
+					q1_coeff1_weno3 = 1.0 + binSizes[1] / (binSizes[0] + binSizes[1]);
+					q1_coeff2_weno3 = 1.0 - (q1_coeff1_weno3);
+					IS_0_coeff_weno3_r = 4.0 * binSizes[nBins - 2] * binSizes[nBins - 2] / (binSizes[nBins - 2] + binSizes[nBins - 1]) / (binSizes[nBins - 2] + binSizes[nBins - 1]);
+					IS_1_coeff_weno3_r = 4.0 * binSizes[nBins - 2] * binSizes[nBins - 2] / (binSizes[nBins - 2] + binSizes[nBins - 3]) / (binSizes[nBins - 2] + binSizes[nBins - 3]);
+					C_coeff1_weno3_r = (binSizes[nBins - 2] + binSizes[nBins - 1]) / (binSizes[nBins - 3] + binSizes[nBins - 2] + binSizes[nBins - 1]);
+					C_coeff2_weno3_r = 1.0 - (C_coeff1_weno3_r);
+					q0_coeff1_weno3_r = binSizes[nBins - 1] / (binSizes[nBins - 2] + binSizes[nBins - 1]);
+					q0_coeff2_weno3_r = 1.0 - (q0_coeff1_weno3_r);
+					q1_coeff1_weno3_r = 1.0 + binSizes[nBins - 2] / (binSizes[nBins - 2] + binSizes[nBins - 3]);
+					q1_coeff2_weno3_r = 1.0 - (q1_coeff1_weno3_r);
+				}
+			};
+
+			struct CompactWenoCoefficients
+			{
+				std::vector<active> P_C_R_coeff_1;
+				std::vector<active> P_C_R_coeff_2;
+				std::vector<active> P_L_coeff;
+				std::vector<active> P_R_coeff;
+				std::vector<active> IS_L_coeff;
+				std::vector<active> IS_R_coeff;
+				std::vector<active> IS_C_coeff_1;
+				std::vector<active> IS_C_coeff_2;
+				std::vector<active> IS_C_coeff_3;
+
+				CompactWenoCoefficients(const std::vector<active>& binSizes)
+					: P_C_R_coeff_1(binSizes.size() - 1), P_C_R_coeff_2(binSizes.size() - 1),
+					  P_L_coeff(binSizes.size() - 1), P_R_coeff(binSizes.size() - 1), IS_L_coeff(binSizes.size() - 1), 
+					  IS_R_coeff(binSizes.size() - 1), IS_C_coeff_1(binSizes.size() - 1),
+					  IS_C_coeff_2(binSizes.size() - 1), IS_C_coeff_3(binSizes.size() - 1)
+				{
+					for (int i = 1; i + 1 < binSizes.size(); ++i)
+					{
+						const active delta_sum = binSizes[i] + binSizes[i - 1] + binSizes[i + 1];
+						const active delta_0_p1 = binSizes[i] + binSizes[i + 1];
+						const active delta_0_n1 = binSizes[i] + binSizes[i - 1];
+						P_C_R_coeff_1[i] = binSizes[i] * (4.0 * delta_0_n1 - delta_sum) / 2.0 / delta_sum / delta_0_p1;
+						P_C_R_coeff_2[i] = -binSizes[i] * (delta_sum - 4.0 * binSizes[i + 1]) / 2.0 / delta_sum / delta_0_n1;
+						P_L_coeff[i] = binSizes[i] / delta_0_n1;
+						P_R_coeff[i] = binSizes[i] / delta_0_p1;
+						IS_L_coeff[i] = 4.0 * P_L_coeff[i] * P_L_coeff[i];
+						IS_R_coeff[i] = 4.0 * P_R_coeff[i] * P_R_coeff[i];
+						IS_C_coeff_1[i] = (binSizes[i] * binSizes[i] * (binSizes[i] + 3.0 * binSizes[i - 1] - binSizes[i + 1]) * (binSizes[i] + 3.0 * binSizes[i - 1] - binSizes[i + 1]) + 156.0 * binSizes[i] * binSizes[i] * binSizes[i] * binSizes[i]) / delta_sum / delta_sum / delta_0_p1 / delta_0_p1;
+						IS_C_coeff_2[i] = (binSizes[i] * binSizes[i] * (binSizes[i] + 3.0 * binSizes[i + 1] - binSizes[i - 1]) * (binSizes[i] + 3.0 * binSizes[i + 1] - binSizes[i - 1]) + 156.0 * binSizes[i] * binSizes[i] * binSizes[i] * binSizes[i]) / delta_sum / delta_sum / delta_0_n1 / delta_0_n1;
+						IS_C_coeff_3[i] = (2.0 * binSizes[i] * binSizes[i] * (binSizes[i] + 3.0 * binSizes[i + 1] - binSizes[i - 1]) * (binSizes[i] + 3.0 * binSizes[i - 1] - binSizes[i + 1]) + 312.0 * binSizes[i] * binSizes[i] * binSizes[i] * binSizes[i]) / delta_sum / delta_sum / delta_0_n1 / delta_0_p1;
+					}
+				}
+			};
+
+		} // namespace detail
+
 		/**
 		 * @brief Defines the crystallization reaction model
 		 */
@@ -42,8 +206,11 @@ namespace cadet
 		{
 		public:
 
-			CrystallizationReaction() : _nComp(0), _nBins(0), _bins(0), _binCenters(0), _binSizes(0) { }
-			virtual ~CrystallizationReaction() CADET_NOEXCEPT { }
+			CrystallizationReaction() : _nComp(0), _nBins(0), _bins(0), _binCenters(0), _binSizes(0), _weno3(nullptr), _weno5(nullptr), _cweno(nullptr) { }
+			virtual ~CrystallizationReaction() CADET_NOEXCEPT
+			{
+				clearSchemeCoefficients();
+			}
 
 			static const char* identifier() { return "CRYSTALLIZATION"; }
 			virtual const char* name() const CADET_NOEXCEPT { return identifier(); }
@@ -106,6 +273,15 @@ namespace cadet
 
 				_u = paramProvider.getDouble("CRY_U");
 				_parameters[makeParamId(hashString("CRY_U"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_u;
+
+				clearSchemeCoefficients();
+
+				if (_growthSchemeOrder == 3)
+					_weno3 = new detail::Weno3Coefficients(_binSizes);
+				else if (_growthSchemeOrder == 4)
+					_weno5 = new detail::Weno5Coefficients(_binSizes);
+				else if (_growthSchemeOrder == 5)
+					_cweno = new detail::CompactWenoCoefficients(_binSizes);
 
 				return true;
 			}
@@ -205,6 +381,10 @@ namespace cadet
 			active _k; //!< System constant
 			active _u; //!< System constant
 
+			detail::Weno3Coefficients* _weno3;
+			detail::Weno5Coefficients* _weno5;
+			detail::CompactWenoCoefficients* _cweno;
+
 			void updateBinCoords() CADET_NOEXCEPT
 			{
 				for (int i = 0; i < _nBins; ++i)
@@ -214,6 +394,27 @@ namespace cadet
 
 					_binCenters[i] = 0.5 * (_bins[i] + _bins[i + 1]);
 					_binSizes[i] = _bins[i + 1] - _bins[i];
+				}
+			}
+
+			void clearSchemeCoefficients() CADET_NOEXCEPT
+			{
+				if (_weno3)
+				{
+					delete _weno3;
+					_weno3 = nullptr;
+				}
+
+				if (_weno5)
+				{
+					delete _weno5;
+					_weno5 = nullptr;
+				}
+
+				if (_cweno)
+				{
+					delete _cweno;
+					_cweno = nullptr;
 				}
 			}
 
@@ -259,7 +460,7 @@ namespace cadet
 				StateParam v_g = 0.0;
 
 				// upwind scheme
-				if (static_cast<ParamType>(_growthSchemeOrder) == 1)
+				if (_growthSchemeOrder == 1)
 				{
 					for (int i = 0; i < _nBins; ++i)
 					{
@@ -289,7 +490,7 @@ namespace cadet
 					}
 				}
 				// high-resolutuion scheme
-				else if (static_cast<ParamType>(_growthSchemeOrder) == 2)
+				else if (_growthSchemeOrder == 2)
 				{
 					StateParam r_x_i = 0.0;
 					StateParam phi = 0.0;
@@ -371,29 +572,8 @@ namespace cadet
 					}
 				}
 				// weno 3 on random grids
-				else if (static_cast<ParamType>(_growthSchemeOrder) == 3)
+				else if (_growthSchemeOrder == 3)
 				{
-					// declare the vectors to store the coefficients
-					std::vector<active> q_1_right_coeff(_nBins - 1);
-					std::vector<active> q_0_right_coeff(_nBins - 1);
-					std::vector<active> C_right_coeff(_nBins - 1);
-					std::vector<active> IS_0_coeff(_nBins - 1);
-					std::vector<active> IS_1_coeff(_nBins - 1);
-					ParamType delta_sum = 0.0;
-					ParamType delta_right_sum = 0.0;
-					ParamType delta_left_sum = 0.0;
-					// calculate the coefficients and store them, the first entry is 0
-					for (int i = 1; i + 1 < _nBins; ++i)
-					{
-						delta_sum = static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i + 1]);
-						delta_left_sum = static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i - 1]);
-						delta_right_sum = static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]);
-						q_0_right_coeff[i] = static_cast<ParamType>(_binSizes[i + 1]) / delta_right_sum;
-						q_1_right_coeff[i] = 1.0 + static_cast<ParamType>(_binSizes[i]) / delta_left_sum;
-						C_right_coeff[i] = delta_left_sum / delta_sum;
-						IS_0_coeff[i] = (2.0 * static_cast<ParamType>(_binSizes[i]) / delta_right_sum) * (2.0 * static_cast<ParamType>(_binSizes[i]) / delta_right_sum);
-						IS_1_coeff[i] = (2.0 * static_cast<ParamType>(_binSizes[i]) / delta_left_sum) * (2.0 * static_cast<ParamType>(_binSizes[i]) / delta_left_sum);
-					}
 					// ode input
 					StateParam IS_0 = 0.0;
 					StateParam IS_1 = 0.0;
@@ -408,24 +588,24 @@ namespace cadet
 						if (cadet_likely((i > 1) && (i + 1 < _nBins)))
 						{
 							// flux through left face
-							IS_0 = static_cast<ParamType>(IS_0_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							alpha_0 = static_cast<ParamType>(C_right_coeff[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = (1.0 - static_cast<ParamType>(C_right_coeff[i - 1])) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							alpha_0 = static_cast<ParamType>(_weno3->C_right_coeff[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = (1.0 - static_cast<ParamType>(_weno3->C_right_coeff[i - 1])) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
 							W_0 = alpha_0 / (alpha_0 + alpha_1);
 							W_1 = 1.0 - W_0;
-							q_0 = static_cast<ParamType>(q_0_right_coeff[i - 1]) * yCrystal[i - 1] + (1.0 - static_cast<ParamType>(q_0_right_coeff[i - 1])) * yCrystal[i];
-							q_1 = static_cast<ParamType>(q_1_right_coeff[i - 1]) * yCrystal[i - 1] + (1.0 - static_cast<ParamType>(q_1_right_coeff[i - 1])) * yCrystal[i - 2];
+							q_0 = static_cast<ParamType>(_weno3->q_0_right_coeff[i - 1]) * yCrystal[i - 1] + (1.0 - static_cast<ParamType>(_weno3->q_0_right_coeff[i - 1])) * yCrystal[i];
+							q_1 = static_cast<ParamType>(_weno3->q_1_right_coeff[i - 1]) * yCrystal[i - 1] + (1.0 - static_cast<ParamType>(_weno3->q_1_right_coeff[i - 1])) * yCrystal[i - 2];
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// flux through right face, update IS, alpha, W, q and growth rate
-							IS_0 = static_cast<ParamType>(IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							alpha_0 = static_cast<ParamType>(C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = (1.0 - static_cast<ParamType>(C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+							IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							alpha_0 = static_cast<ParamType>(_weno3->C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = (1.0 - static_cast<ParamType>(_weno3->C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
 							W_0 = alpha_0 / (alpha_0 + alpha_1);
 							W_1 = 1.0 - W_0;
-							q_0 = static_cast<ParamType>(q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(q_0_right_coeff[i])) * yCrystal[i + 1];
-							q_1 = static_cast<ParamType>(q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(q_1_right_coeff[i])) * yCrystal[i - 1];
+							q_0 = static_cast<ParamType>(_weno3->q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_0_right_coeff[i])) * yCrystal[i + 1];
+							q_1 = static_cast<ParamType>(_weno3->q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_1_right_coeff[i])) * yCrystal[i - 1];
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
@@ -433,14 +613,14 @@ namespace cadet
 						else if (i + 1 == _nBins)
 						{
 							// weno3 applied to the influx of the last bin
-							IS_0 = static_cast<ParamType>(IS_0_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							alpha_0 = static_cast<ParamType>(C_right_coeff[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = (1.0 - static_cast<ParamType>(C_right_coeff[i - 1])) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							alpha_0 = static_cast<ParamType>(_weno3->C_right_coeff[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = (1.0 - static_cast<ParamType>(_weno3->C_right_coeff[i - 1])) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
 							W_0 = alpha_0 / (alpha_0 + alpha_1);
 							W_1 = 1.0 - W_0;
-							q_0 = static_cast<ParamType>(q_0_right_coeff[i - 1]) * yCrystal[i - 1] + (1.0 - static_cast<ParamType>(q_0_right_coeff[i - 1])) * yCrystal[i];
-							q_1 = static_cast<ParamType>(q_1_right_coeff[i - 1]) * yCrystal[i - 1] + (1.0 - static_cast<ParamType>(q_1_right_coeff[i - 1])) * yCrystal[i - 2];
+							q_0 = static_cast<ParamType>(_weno3->q_0_right_coeff[i - 1]) * yCrystal[i - 1] + (1.0 - static_cast<ParamType>(_weno3->q_0_right_coeff[i - 1])) * yCrystal[i];
+							q_1 = static_cast<ParamType>(_weno3->q_1_right_coeff[i - 1]) * yCrystal[i - 1] + (1.0 - static_cast<ParamType>(_weno3->q_1_right_coeff[i - 1])) * yCrystal[i - 2];
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// no flux, regularity boundary condition
 						}
@@ -449,14 +629,14 @@ namespace cadet
 							// upwind applied to F_{1/2}
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// weno3 applied to F_{1+1/2}
-							IS_0 = static_cast<ParamType>(IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							alpha_0 = static_cast<ParamType>(C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = (1.0 - static_cast<ParamType>(C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+							IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							alpha_0 = static_cast<ParamType>(_weno3->C_right_coeff[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = (1.0 - static_cast<ParamType>(_weno3->C_right_coeff[i])) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
 							W_0 = alpha_0 / (alpha_0 + alpha_1);
 							W_1 = 1.0 - W_0;
-							q_0 = static_cast<ParamType>(q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(q_0_right_coeff[i])) * yCrystal[i + 1];
-							q_1 = static_cast<ParamType>(q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(q_1_right_coeff[i])) * yCrystal[i - 1];
+							q_0 = static_cast<ParamType>(_weno3->q_0_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_0_right_coeff[i])) * yCrystal[i + 1];
+							q_1 = static_cast<ParamType>(_weno3->q_1_right_coeff[i]) * yCrystal[i] + (1.0 - static_cast<ParamType>(_weno3->q_1_right_coeff[i])) * yCrystal[i - 1];
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
@@ -471,63 +651,8 @@ namespace cadet
 					}
 				}
 				// weno 5 on random grids
-				else if (static_cast<ParamType>(_growthSchemeOrder) == 4)
+				else if (_growthSchemeOrder == 4)
 				{
-					// declare the vectors to store the coefficients
-					std::vector<active> q_2_coeff_1(_nBins - 2);
-					std::vector<active> q_2_coeff_2(_nBins - 2);
-					std::vector<active> q_1_coeff_1(_nBins - 2);
-					std::vector<active> q_1_coeff_2(_nBins - 2);
-					std::vector<active> q_0_coeff_1(_nBins - 2);
-					std::vector<active> q_0_coeff_2(_nBins - 2);
-					std::vector<active> C_0(_nBins - 2);
-					std::vector<active> C_1(_nBins - 2);
-					std::vector<active> C_2(_nBins - 2);
-					std::vector<active> IS_0_coeff_1(_nBins - 2);
-					std::vector<active> IS_0_coeff_2(_nBins - 2);
-					std::vector<active> IS_0_coeff_3(_nBins - 2);
-					std::vector<active> IS_1_coeff_1(_nBins - 2);
-					std::vector<active> IS_1_coeff_2(_nBins - 2);
-					std::vector<active> IS_1_coeff_3(_nBins - 2);
-					std::vector<active> IS_2_coeff_1(_nBins - 2);
-					std::vector<active> IS_2_coeff_2(_nBins - 2);
-					std::vector<active> IS_2_coeff_3(_nBins - 2);
-					ParamType delta_sum = 0.0;
-					ParamType delta_sum_I0 = 0.0;
-					ParamType delta_sum_I1 = 0.0;
-					ParamType delta_sum_I2 = 0.0;
-					ParamType IS_0_pre = 0.0;
-					ParamType IS_1_pre = 0.0;
-					ParamType IS_2_pre = 0.0;
-					// calculate the coefficients and store them, the first and second entry is 0, all positive
-					for (int i = 2; i + 2 < _nBins; ++i)
-					{
-						delta_sum = static_cast<ParamType>(_binSizes[i - 2]) + static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]) + static_cast<ParamType>(_binSizes[i + 2]);
-						delta_sum_I0 = static_cast<ParamType>(_binSizes[i - 2]) + static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i]);
-						delta_sum_I1 = static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]);
-						delta_sum_I2 = static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]) + static_cast<ParamType>(_binSizes[i + 2]);
-						q_0_coeff_1[i] = static_cast<ParamType>(_binSizes[i + 1]) * (delta_sum_I2 - static_cast<ParamType>(_binSizes[i])) / (delta_sum_I2 - static_cast<ParamType>(_binSizes[i + 2])) / delta_sum_I2;
-						q_0_coeff_2[i] = static_cast<ParamType>(_binSizes[i + 1]) * static_cast<ParamType>(_binSizes[i]) / delta_sum_I2 / (delta_sum_I2 - static_cast<ParamType>(_binSizes[i]));
-						q_1_coeff_1[i] = static_cast<ParamType>(_binSizes[i]) * (delta_sum_I1 - static_cast<ParamType>(_binSizes[i + 1])) / delta_sum_I1 / (delta_sum_I1 - static_cast<ParamType>(_binSizes[i - 1]));
-						q_1_coeff_2[i] = static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i + 1]) / delta_sum_I1 / (delta_sum_I1 - static_cast<ParamType>(_binSizes[i + 1]));
-						q_2_coeff_1[i] = static_cast<ParamType>(_binSizes[i]) * (delta_sum_I0 - static_cast<ParamType>(_binSizes[i - 2])) / delta_sum_I0 / (delta_sum_I0 - static_cast<ParamType>(_binSizes[i]));
-						q_2_coeff_2[i] = 1.0 + static_cast<ParamType>(_binSizes[i]) / (static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i])) + static_cast<ParamType>(_binSizes[i]) / delta_sum_I0;
-						C_0[i] = delta_sum_I0 * (delta_sum_I0 - static_cast<ParamType>(_binSizes[i - 2])) / delta_sum / (delta_sum - static_cast<ParamType>(_binSizes[i - 2]));
-						C_1[i] = delta_sum_I0 / delta_sum * (delta_sum_I2 - static_cast<ParamType>(_binSizes[i])) / (static_cast<ParamType>(_binSizes[i - 1]) + delta_sum_I2) * (1.0 + (delta_sum - static_cast<ParamType>(_binSizes[i - 2])) / (delta_sum - static_cast<ParamType>(_binSizes[i + 2])));
-						C_2[i] = static_cast<ParamType>(_binSizes[i + 1]) * (static_cast<ParamType>(_binSizes[i + 1]) + static_cast<ParamType>(_binSizes[i + 2])) / delta_sum / (delta_sum - static_cast<ParamType>(_binSizes[i + 2]));
-						IS_0_pre = 4.0 * (static_cast<ParamType>(_binSizes[i]) / delta_sum_I2) * (static_cast<ParamType>(_binSizes[i]) / delta_sum_I2);
-						IS_0_coeff_1[i] = IS_0_pre * (10.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]) * (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]))) / (static_cast<ParamType>(_binSizes[i + 1]) + static_cast<ParamType>(_binSizes[i + 2])) / (static_cast<ParamType>(_binSizes[i + 1]) + static_cast<ParamType>(_binSizes[i + 2]));
-						IS_0_coeff_2[i] = IS_0_pre * (20.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) + 2.0 * static_cast<ParamType>(_binSizes[i + 1]) * (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1])) + (2.0 * static_cast<ParamType>(_binSizes[i + 1]) + static_cast<ParamType>(_binSizes[i])) * delta_sum_I2) / (static_cast<ParamType>(_binSizes[i + 1]) + static_cast<ParamType>(_binSizes[i + 2])) / (static_cast<ParamType>(_binSizes[i + 1]) + static_cast<ParamType>(_binSizes[i]));
-						IS_0_coeff_3[i] = IS_0_pre * (10.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) + (2.0 * delta_sum_I2 - static_cast<ParamType>(_binSizes[i + 2])) * (delta_sum_I2 + static_cast<ParamType>(_binSizes[i + 1]))) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1])) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]));
-						IS_1_pre = 4.0 * (static_cast<ParamType>(_binSizes[i]) / delta_sum_I1) * (static_cast<ParamType>(_binSizes[i]) / delta_sum_I1);
-						IS_1_coeff_1[i] = IS_1_pre * (10.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]) * (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]))) / (static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i])) / (static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i]));
-						IS_1_coeff_2[i] = IS_1_pre * (20.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) - static_cast<ParamType>(_binSizes[i + 1]) * static_cast<ParamType>(_binSizes[i - 1]) - (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1])) * (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i - 1]))) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1])) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i - 1]));
-						IS_1_coeff_3[i] = IS_1_pre * (10.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i - 1]) * (static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i]))) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1])) / (static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]));
-						IS_2_pre = 4.0 * (static_cast<ParamType>(_binSizes[i]) / delta_sum_I0) * (static_cast<ParamType>(_binSizes[i]) / delta_sum_I0);
-						IS_2_coeff_1[i] = IS_2_pre * (10.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i - 1]) * (static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i]))) / (static_cast<ParamType>(_binSizes[i - 2]) + static_cast<ParamType>(_binSizes[i - 1])) / (static_cast<ParamType>(_binSizes[i - 2]) + static_cast<ParamType>(_binSizes[i - 1]));
-						IS_2_coeff_2[i] = IS_2_pre * (20.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) + 2.0 * static_cast<ParamType>(_binSizes[i - 1]) * (static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i])) + delta_sum_I0 * (2.0 * static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i]))) / (static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i])) / (static_cast<ParamType>(_binSizes[i - 2]) + static_cast<ParamType>(_binSizes[i - 1]));
-						IS_2_coeff_3[i] = IS_2_pre * (10.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) + (2.0 * delta_sum_I0 - static_cast<ParamType>(_binSizes[i - 2])) * (delta_sum_I0 + static_cast<ParamType>(_binSizes[i - 1]))) / (static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i])) / (static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i]));
-					}
 					// define local variables
 					StateParam IS_0 = 0.0;
 					StateParam IS_1 = 0.0;
@@ -541,83 +666,65 @@ namespace cadet
 					StateParam q_0 = 0.0;
 					StateParam q_1 = 0.0;
 					StateParam q_2 = 0.0;
-					// weno3 parameters, left
-					const ParamType IS_0_coeff_weno3 = 4.0 * static_cast<ParamType>(_binSizes[1]) * static_cast<ParamType>(_binSizes[1]) / (static_cast<ParamType>(_binSizes[1]) + static_cast<ParamType>(_binSizes[2])) / (static_cast<ParamType>(_binSizes[1]) + static_cast<ParamType>(_binSizes[2]));
-					const ParamType IS_1_coeff_weno3 = 4.0 * static_cast<ParamType>(_binSizes[1]) * static_cast<ParamType>(_binSizes[1]) / (static_cast<ParamType>(_binSizes[0]) + static_cast<ParamType>(_binSizes[1])) / (static_cast<ParamType>(_binSizes[0]) + static_cast<ParamType>(_binSizes[1]));
-					const ParamType C_coeff1_weno3 = (static_cast<ParamType>(_binSizes[0]) + static_cast<ParamType>(_binSizes[1])) / (static_cast<ParamType>(_binSizes[0]) + static_cast<ParamType>(_binSizes[1]) + static_cast<ParamType>(_binSizes[2]));
-					const ParamType C_coeff2_weno3 = 1.0 - static_cast<ParamType>(C_coeff1_weno3);
-					const ParamType q0_coeff1_weno3 = static_cast<ParamType>(_binSizes[2]) / (static_cast<ParamType>(_binSizes[1]) + static_cast<ParamType>(_binSizes[2]));
-					const ParamType q0_coeff2_weno3 = 1.0 - static_cast<ParamType>(q0_coeff1_weno3);
-					const ParamType q1_coeff1_weno3 = 1.0 + static_cast<ParamType>(_binSizes[1]) / (static_cast<ParamType>(_binSizes[0]) + static_cast<ParamType>(_binSizes[1]));
-					const ParamType q1_coeff2_weno3 = 1.0 - static_cast<ParamType>(q1_coeff1_weno3);
-					// weno3 parameters, right
-					const ParamType IS_0_coeff_weno3_r = 4.0 * static_cast<ParamType>(_binSizes[_nBins - 2]) * static_cast<ParamType>(_binSizes[_nBins - 2]) / (static_cast<ParamType>(_binSizes[_nBins - 2]) + static_cast<ParamType>(_binSizes[_nBins - 1])) / (static_cast<ParamType>(_binSizes[_nBins - 2]) + static_cast<ParamType>(_binSizes[_nBins - 1]));
-					const ParamType IS_1_coeff_weno3_r = 4.0 * static_cast<ParamType>(_binSizes[_nBins - 2]) * static_cast<ParamType>(_binSizes[_nBins - 2]) / (static_cast<ParamType>(_binSizes[_nBins - 2]) + static_cast<ParamType>(_binSizes[_nBins - 3])) / (static_cast<ParamType>(_binSizes[_nBins - 2]) + static_cast<ParamType>(_binSizes[_nBins - 3]));
-					const ParamType C_coeff1_weno3_r = (static_cast<ParamType>(_binSizes[_nBins - 2]) + static_cast<ParamType>(_binSizes[_nBins - 1])) / (static_cast<ParamType>(_binSizes[_nBins - 3]) + static_cast<ParamType>(_binSizes[_nBins - 2]) + static_cast<ParamType>(_binSizes[_nBins - 1]));
-					const ParamType C_coeff2_weno3_r = 1.0 - static_cast<ParamType>(C_coeff1_weno3_r);
-					const ParamType q0_coeff1_weno3_r = static_cast<ParamType>(_binSizes[_nBins - 1]) / (static_cast<ParamType>(_binSizes[_nBins - 2]) + static_cast<ParamType>(_binSizes[_nBins - 1]));
-					const ParamType q0_coeff2_weno3_r = 1.0 - static_cast<ParamType>(q0_coeff1_weno3_r);
-					const ParamType q1_coeff1_weno3_r = 1.0 + static_cast<ParamType>(_binSizes[_nBins - 2]) / (static_cast<ParamType>(_binSizes[_nBins - 2]) + static_cast<ParamType>(_binSizes[_nBins - 3]));
-					const ParamType q1_coeff2_weno3_r = 1.0 - static_cast<ParamType>(q1_coeff1_weno3_r);
 					for (int i = 0; i < _nBins; ++i)
 					{
 						if (cadet_likely((i > 2) && (i + 2 < _nBins)))
 						{
 							// flux through the left face 
-							IS_0 = static_cast<ParamType>(IS_0_coeff_1[i - 1]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(IS_0_coeff_2[i - 1]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(IS_0_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff_1[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(IS_1_coeff_2[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(IS_1_coeff_3[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							IS_2 = static_cast<ParamType>(IS_2_coeff_1[i - 1]) * (yCrystal[i - 3] - yCrystal[i - 2]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(IS_2_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(IS_2_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							alpha_0 = static_cast<ParamType>(C_0[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = static_cast<ParamType>(C_1[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
-							alpha_2 = static_cast<ParamType>(C_2[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
+							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i - 1]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i - 1]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]);
+							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_2 = static_cast<ParamType>(_weno5->IS_2_coeff_1[i - 1]) * (yCrystal[i - 3] - yCrystal[i - 2]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(_weno5->IS_2_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(_weno5->IS_2_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							alpha_0 = static_cast<ParamType>(_weno5->C_0[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = static_cast<ParamType>(_weno5->C_1[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							alpha_2 = static_cast<ParamType>(_weno5->C_2[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
 							W_0 = alpha_0 / (alpha_0 + alpha_1 + alpha_2);
 							W_1 = alpha_1 / (alpha_0 + alpha_1 + alpha_2);
 							W_2 = 1.0 - W_0 - W_1;
-							q_0 = yCrystal[i] + static_cast<ParamType>(q_0_coeff_1[i - 1]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(q_0_coeff_2[i - 1]) * (yCrystal[i] - yCrystal[i + 1]);
-							q_1 = yCrystal[i - 1] + static_cast<ParamType>(q_1_coeff_1[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(q_1_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							q_2 = yCrystal[i - 2] + static_cast<ParamType>(q_2_coeff_1[i - 1]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(q_2_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							q_0 = yCrystal[i] + static_cast<ParamType>(_weno5->q_0_coeff_1[i - 1]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->q_0_coeff_2[i - 1]) * (yCrystal[i] - yCrystal[i + 1]);
+							q_1 = yCrystal[i - 1] + static_cast<ParamType>(_weno5->q_1_coeff_1[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->q_1_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							q_2 = yCrystal[i - 2] + static_cast<ParamType>(_weno5->q_2_coeff_1[i - 1]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(_weno5->q_2_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// flux through the right face
-							IS_0 = static_cast<ParamType>(IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-							IS_2 = static_cast<ParamType>(IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							alpha_0 = static_cast<ParamType>(C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = static_cast<ParamType>(C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
-							alpha_2 = static_cast<ParamType>(C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
+							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
+							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+							IS_2 = static_cast<ParamType>(_weno5->IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							alpha_0 = static_cast<ParamType>(_weno5->C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = static_cast<ParamType>(_weno5->C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							alpha_2 = static_cast<ParamType>(_weno5->C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
 							W_0 = alpha_0 / (alpha_0 + alpha_1 + alpha_2);
 							W_1 = alpha_1 / (alpha_0 + alpha_1 + alpha_2);
 							W_2 = 1.0 - W_0 - W_1;
-							q_0 = yCrystal[i + 1] + static_cast<ParamType>(q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
-							q_1 = yCrystal[i] + static_cast<ParamType>(q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
-							q_2 = yCrystal[i - 1] + static_cast<ParamType>(q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+							q_0 = yCrystal[i + 1] + static_cast<ParamType>(_weno5->q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
+							q_1 = yCrystal[i] + static_cast<ParamType>(_weno5->q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+							q_2 = yCrystal[i - 1] + static_cast<ParamType>(_weno5->q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
 						else if (i == 2)
 						{
 							// weno3 applied to F_{2-1/2}
-							IS_0 = static_cast<ParamType>(IS_0_coeff_weno3) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff_weno3) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							alpha_0 = static_cast<ParamType>(C_coeff1_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = static_cast<ParamType>(C_coeff2_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							alpha_0 = static_cast<ParamType>(_weno5->C_coeff1_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = static_cast<ParamType>(_weno5->C_coeff2_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
 							W_0 = alpha_0 / (alpha_0 + alpha_1);
 							W_1 = 1.0 - W_0;
-							q_0 = static_cast<ParamType>(q0_coeff1_weno3) * yCrystal[i - 1] + static_cast<ParamType>(q0_coeff2_weno3) * yCrystal[i];
-							q_1 = static_cast<ParamType>(q1_coeff1_weno3) * yCrystal[i - 1] + static_cast<ParamType>(q1_coeff2_weno3) * yCrystal[i - 2];
+							q_0 = static_cast<ParamType>(_weno5->q0_coeff1_weno3) * yCrystal[i - 1] + static_cast<ParamType>(_weno5->q0_coeff2_weno3) * yCrystal[i];
+							q_1 = static_cast<ParamType>(_weno5->q1_coeff1_weno3) * yCrystal[i - 1] + static_cast<ParamType>(_weno5->q1_coeff2_weno3) * yCrystal[i - 2];
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							//weno5 applied to F_{2+1/2}
-							IS_0 = static_cast<ParamType>(IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-							IS_2 = static_cast<ParamType>(IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							alpha_0 = static_cast<ParamType>(C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = static_cast<ParamType>(C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
-							alpha_2 = static_cast<ParamType>(C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
+							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
+							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+							IS_2 = static_cast<ParamType>(_weno5->IS_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_2_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							alpha_0 = static_cast<ParamType>(_weno5->C_0[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = static_cast<ParamType>(_weno5->C_1[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							alpha_2 = static_cast<ParamType>(_weno5->C_2[i]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
 							W_0 = alpha_0 / (alpha_0 + alpha_1 + alpha_2);
 							W_1 = alpha_1 / (alpha_0 + alpha_1 + alpha_2);
 							W_2 = 1.0 - W_0 - W_1;
-							q_0 = yCrystal[i + 1] + static_cast<ParamType>(q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
-							q_1 = yCrystal[i] + static_cast<ParamType>(q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
-							q_2 = yCrystal[i - 1] + static_cast<ParamType>(q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+							q_0 = yCrystal[i + 1] + static_cast<ParamType>(_weno5->q_0_coeff_1[i]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->q_0_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i + 2]);
+							q_1 = yCrystal[i] + static_cast<ParamType>(_weno5->q_1_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->q_1_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+							q_2 = yCrystal[i - 1] + static_cast<ParamType>(_weno5->q_2_coeff_1[i]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->q_2_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
@@ -626,14 +733,14 @@ namespace cadet
 							// upwind applied to F_{1-1/2}
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// weno3 applied to F_{1+1/2}
-							IS_0 = static_cast<ParamType>(IS_0_coeff_weno3) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff_weno3) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							alpha_0 = static_cast<ParamType>(C_coeff1_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = static_cast<ParamType>(C_coeff2_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							alpha_0 = static_cast<ParamType>(_weno5->C_coeff1_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = static_cast<ParamType>(_weno5->C_coeff2_weno3) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
 							W_0 = alpha_0 / (alpha_0 + alpha_1);
 							W_1 = 1.0 - W_0;
-							q_0 = static_cast<ParamType>(q0_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(q0_coeff2_weno3) * yCrystal[i + 1];
-							q_1 = static_cast<ParamType>(q1_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(q1_coeff2_weno3) * yCrystal[i - 1];
+							q_0 = static_cast<ParamType>(_weno5->q0_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(_weno5->q0_coeff2_weno3) * yCrystal[i + 1];
+							q_1 = static_cast<ParamType>(_weno5->q1_coeff1_weno3) * yCrystal[i] + static_cast<ParamType>(_weno5->q1_coeff2_weno3) * yCrystal[i - 1];
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
@@ -648,78 +755,50 @@ namespace cadet
 						else if (i + 2 == _nBins)
 						{
 							// weno5 applied to F_{nx-2-1/2}
-							IS_0 = static_cast<ParamType>(IS_0_coeff_1[i - 1]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(IS_0_coeff_2[i - 1]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(IS_0_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff_1[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(IS_1_coeff_2[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(IS_1_coeff_3[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							IS_2 = static_cast<ParamType>(IS_2_coeff_1[i - 1]) * (yCrystal[i - 3] - yCrystal[i - 2]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(IS_2_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(IS_2_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							alpha_0 = static_cast<ParamType>(C_0[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = static_cast<ParamType>(C_1[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
-							alpha_2 = static_cast<ParamType>(C_2[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
+							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i - 1]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i - 1]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]);
+							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i - 2] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_2 = static_cast<ParamType>(_weno5->IS_2_coeff_1[i - 1]) * (yCrystal[i - 3] - yCrystal[i - 2]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(_weno5->IS_2_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(_weno5->IS_2_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							alpha_0 = static_cast<ParamType>(_weno5->C_0[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = static_cast<ParamType>(_weno5->C_1[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							alpha_2 = static_cast<ParamType>(_weno5->C_2[i - 1]) / (static_cast<ParamType>(_binSizes[i]) + IS_2) / (static_cast<ParamType>(_binSizes[i]) + IS_2);
 							W_0 = alpha_0 / (alpha_0 + alpha_1 + alpha_2);
 							W_1 = alpha_1 / (alpha_0 + alpha_1 + alpha_2);
 							W_2 = 1.0 - W_0 - W_1;
-							q_0 = yCrystal[i] + static_cast<ParamType>(q_0_coeff_1[i - 1]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(q_0_coeff_2[i - 1]) * (yCrystal[i] - yCrystal[i + 1]);
-							q_1 = yCrystal[i - 1] + static_cast<ParamType>(q_1_coeff_1[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(q_1_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							q_2 = yCrystal[i - 2] + static_cast<ParamType>(q_2_coeff_1[i - 1]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(q_2_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							q_0 = yCrystal[i] + static_cast<ParamType>(_weno5->q_0_coeff_1[i - 1]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->q_0_coeff_2[i - 1]) * (yCrystal[i] - yCrystal[i + 1]);
+							q_1 = yCrystal[i - 1] + static_cast<ParamType>(_weno5->q_1_coeff_1[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(_weno5->q_1_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							q_2 = yCrystal[i - 2] + static_cast<ParamType>(_weno5->q_2_coeff_1[i - 1]) * (yCrystal[i - 3] - yCrystal[i - 2]) + static_cast<ParamType>(_weno5->q_2_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// weno3 applied to F_{nx-2+1/2}
-							IS_0 = static_cast<ParamType>(IS_0_coeff_weno3_r) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff_weno3_r) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							alpha_0 = static_cast<ParamType>(C_coeff1_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = static_cast<ParamType>(C_coeff2_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3_r) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3_r) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							alpha_0 = static_cast<ParamType>(_weno5->C_coeff1_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = static_cast<ParamType>(_weno5->C_coeff2_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
 							W_0 = alpha_0 / (alpha_0 + alpha_1);
 							W_1 = 1.0 - W_0;
-							q_0 = static_cast<ParamType>(q0_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(q0_coeff2_weno3_r) * yCrystal[i + 1];
-							q_1 = static_cast<ParamType>(q1_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(q1_coeff2_weno3_r) * yCrystal[i - 1];
+							q_0 = static_cast<ParamType>(_weno5->q0_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(_weno5->q0_coeff2_weno3_r) * yCrystal[i + 1];
+							q_1 = static_cast<ParamType>(_weno5->q1_coeff1_weno3_r) * yCrystal[i] + static_cast<ParamType>(_weno5->q1_coeff2_weno3_r) * yCrystal[i - 1];
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
 						else
 						{
 							// weno3 to F_{nx-1-1/2}
-							IS_0 = static_cast<ParamType>(IS_0_coeff_weno3_r) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							IS_1 = static_cast<ParamType>(IS_1_coeff_weno3_r) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							alpha_0 = static_cast<ParamType>(C_coeff1_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
-							alpha_1 = static_cast<ParamType>(C_coeff2_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
+							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3_r) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3_r) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							alpha_0 = static_cast<ParamType>(_weno5->C_coeff1_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_0) / (static_cast<ParamType>(_binSizes[i]) + IS_0);
+							alpha_1 = static_cast<ParamType>(_weno5->C_coeff2_weno3_r) / (static_cast<ParamType>(_binSizes[i]) + IS_1) / (static_cast<ParamType>(_binSizes[i]) + IS_1);
 							W_0 = alpha_0 / (alpha_0 + alpha_1);
 							W_1 = 1.0 - W_0;
-							q_0 = static_cast<ParamType>(q0_coeff1_weno3_r) * yCrystal[i - 1] + static_cast<ParamType>(q0_coeff2_weno3_r) * yCrystal[i];
-							q_1 = static_cast<ParamType>(q1_coeff1_weno3_r) * yCrystal[i - 1] + static_cast<ParamType>(q1_coeff2_weno3_r) * yCrystal[i - 2];
+							q_0 = static_cast<ParamType>(_weno5->q0_coeff1_weno3_r) * yCrystal[i - 1] + static_cast<ParamType>(_weno5->q0_coeff2_weno3_r) * yCrystal[i];
+							q_1 = static_cast<ParamType>(_weno5->q1_coeff1_weno3_r) * yCrystal[i - 1] + static_cast<ParamType>(_weno5->q1_coeff2_weno3_r) * yCrystal[i - 2];
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// no flux BC
 						}
 					}
 				}
 				// compact weno schemes, still complicated, but much better than weno5
-				else if (static_cast<ParamType>(_growthSchemeOrder) == 5)
+				else if (_growthSchemeOrder == 5)
 				{
-					std::vector<active> P_C_R_coeff_1(_nBins - 1);
-					std::vector<active> P_C_R_coeff_2(_nBins - 1);  // negative 
-					std::vector<active> P_L_coeff(_nBins - 1);
-					std::vector<active> P_R_coeff(_nBins - 1);
-					std::vector<active> IS_L_coeff(_nBins - 1);
-					std::vector<active> IS_R_coeff(_nBins - 1);
-					std::vector<active> IS_C_coeff_1(_nBins - 1);
-					std::vector<active> IS_C_coeff_2(_nBins - 1);
-					std::vector<active> IS_C_coeff_3(_nBins - 1);
-					ParamType delta_sum = 0.0;
-					ParamType delta_0_p1 = 0.0;
-					ParamType delta_0_n1 = 0.0;
-					// calculate the coefficients and store them, the first entry is 0
-					for (int i = 1; i + 1 < _nBins; ++i)
-					{
-						delta_sum = static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i - 1]) + static_cast<ParamType>(_binSizes[i + 1]);
-						delta_0_p1 = static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i + 1]);
-						delta_0_n1 = static_cast<ParamType>(_binSizes[i]) + static_cast<ParamType>(_binSizes[i - 1]);
-						P_C_R_coeff_1[i] = static_cast<ParamType>(_binSizes[i]) * (4.0 * delta_0_n1 - delta_sum) / 2.0 / delta_sum / delta_0_p1;
-						P_C_R_coeff_2[i] = -static_cast<ParamType>(_binSizes[i]) * (delta_sum - 4.0 * static_cast<ParamType>(_binSizes[i + 1])) / 2.0 / delta_sum / delta_0_n1;
-						P_L_coeff[i] = static_cast<ParamType>(_binSizes[i]) / delta_0_n1;
-						P_R_coeff[i] = static_cast<ParamType>(_binSizes[i]) / delta_0_p1;
-						IS_L_coeff[i] = 4.0 * P_L_coeff[i] * P_L_coeff[i];
-						IS_R_coeff[i] = 4.0 * P_R_coeff[i] * P_R_coeff[i];
-						IS_C_coeff_1[i] = (static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) * (static_cast<ParamType>(_binSizes[i]) + 3.0 * static_cast<ParamType>(_binSizes[i - 1]) - static_cast<ParamType>(_binSizes[i + 1])) * (static_cast<ParamType>(_binSizes[i]) + 3.0 * static_cast<ParamType>(_binSizes[i - 1]) - static_cast<ParamType>(_binSizes[i + 1])) + 156.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i])) / delta_sum / delta_sum / delta_0_p1 / delta_0_p1;
-						IS_C_coeff_2[i] = (static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) * (static_cast<ParamType>(_binSizes[i]) + 3.0 * static_cast<ParamType>(_binSizes[i + 1]) - static_cast<ParamType>(_binSizes[i - 1])) * (static_cast<ParamType>(_binSizes[i]) + 3.0 * static_cast<ParamType>(_binSizes[i + 1]) - static_cast<ParamType>(_binSizes[i - 1])) + 156.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i])) / delta_sum / delta_sum / delta_0_n1 / delta_0_n1;
-						IS_C_coeff_3[i] = (2.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) * (static_cast<ParamType>(_binSizes[i]) + 3.0 * static_cast<ParamType>(_binSizes[i + 1]) - static_cast<ParamType>(_binSizes[i - 1])) * (static_cast<ParamType>(_binSizes[i]) + 3.0 * static_cast<ParamType>(_binSizes[i - 1]) - static_cast<ParamType>(_binSizes[i + 1])) + 312.0 * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i]) * static_cast<ParamType>(_binSizes[i])) / delta_sum / delta_sum / delta_0_n1 / delta_0_p1;
-					}
 					// ode input
 					StateParam IS_L_square = 0.0;
 					StateParam IS_R_square = 0.0;
@@ -738,50 +817,50 @@ namespace cadet
 						if (cadet_likely((i > 1) && (i + 1 < _nBins)))
 						{
 							// flux through the left face 
-							IS_L_square = static_cast<ParamType>(IS_L_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							IS_R_square = static_cast<ParamType>(IS_R_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							IS_C_square = static_cast<ParamType>(IS_C_coeff_1[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(IS_C_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]) + static_cast<ParamType>(IS_C_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_L_square = static_cast<ParamType>(_cweno->IS_L_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							IS_R_square = static_cast<ParamType>(_cweno->IS_R_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_C_square = static_cast<ParamType>(_cweno->IS_C_coeff_1[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(_cweno->IS_C_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]) + static_cast<ParamType>(_cweno->IS_C_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i] - yCrystal[i - 1]);
 							alpha_L = 0.25 / (static_cast<ParamType>(_binSizes[i]) + IS_L_square) / (static_cast<ParamType>(_binSizes[i]) + IS_L_square);
 							alpha_R = 0.25 / (static_cast<ParamType>(_binSizes[i]) + IS_R_square) / (static_cast<ParamType>(_binSizes[i]) + IS_R_square);
 							alpha_C = 0.5 / (static_cast<ParamType>(_binSizes[i]) + IS_C_square) / (static_cast<ParamType>(_binSizes[i]) + IS_C_square);
 							W_L = alpha_L / (alpha_L + alpha_R + alpha_C);
 							W_R = alpha_R / (alpha_L + alpha_R + alpha_C);
 							W_C = 1.0 - W_L - W_R;
-							P_L = yCrystal[i - 1] + static_cast<ParamType>(P_L_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							P_R = yCrystal[i - 1] + static_cast<ParamType>(P_R_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							P_C = yCrystal[i - 1] + static_cast<ParamType>(P_C_R_coeff_1[i]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(P_C_R_coeff_2[i]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							P_L = yCrystal[i - 1] + static_cast<ParamType>(_cweno->P_L_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							P_R = yCrystal[i - 1] + static_cast<ParamType>(_cweno->P_R_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							P_C = yCrystal[i - 1] + static_cast<ParamType>(_cweno->P_C_R_coeff_1[i]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(_cweno->P_C_R_coeff_2[i]) * (yCrystal[i - 1] - yCrystal[i - 2]);
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_L * P_L + W_C * P_C + W_R * P_R) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// flux through the right face
-							IS_L_square = static_cast<ParamType>(IS_L_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							IS_R_square = static_cast<ParamType>(IS_R_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-							IS_C_square = static_cast<ParamType>(IS_C_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(IS_C_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(IS_C_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i + 1] - yCrystal[i]);
+							IS_L_square = static_cast<ParamType>(_cweno->IS_L_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_R_square = static_cast<ParamType>(_cweno->IS_R_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+							IS_C_square = static_cast<ParamType>(_cweno->IS_C_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_cweno->IS_C_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(_cweno->IS_C_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i + 1] - yCrystal[i]);
 							alpha_L = 0.25 / (static_cast<ParamType>(_binSizes[i]) + IS_L_square) / (static_cast<ParamType>(_binSizes[i]) + IS_L_square);
 							alpha_R = 0.25 / (static_cast<ParamType>(_binSizes[i]) + IS_R_square) / (static_cast<ParamType>(_binSizes[i]) + IS_R_square);
 							alpha_C = 0.5 / (static_cast<ParamType>(_binSizes[i]) + IS_C_square) / (static_cast<ParamType>(_binSizes[i]) + IS_C_square);
 							W_L = alpha_L / (alpha_L + alpha_R + alpha_C);
 							W_R = alpha_R / (alpha_L + alpha_R + alpha_C);
 							W_C = 1.0 - W_L - W_R;
-							P_L = yCrystal[i] + static_cast<ParamType>(P_L_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]);
-							P_R = yCrystal[i] + static_cast<ParamType>(P_R_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]);
-							P_C = yCrystal[i] + static_cast<ParamType>(P_C_R_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(P_C_R_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+							P_L = yCrystal[i] + static_cast<ParamType>(_cweno->P_L_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]);
+							P_R = yCrystal[i] + static_cast<ParamType>(_cweno->P_R_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]);
+							P_C = yCrystal[i] + static_cast<ParamType>(_cweno->P_C_R_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_cweno->P_C_R_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_L * P_L + W_C * P_C + W_R * P_R) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
 						else if (i + 1 == _nBins)
 						{
 							// cweno applied to F_{nx-1-1/2}
-							IS_L_square = static_cast<ParamType>(IS_L_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							IS_R_square = static_cast<ParamType>(IS_R_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							IS_C_square = static_cast<ParamType>(IS_C_coeff_1[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(IS_C_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]) + static_cast<ParamType>(IS_C_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_L_square = static_cast<ParamType>(_cweno->IS_L_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							IS_R_square = static_cast<ParamType>(_cweno->IS_R_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_C_square = static_cast<ParamType>(_cweno->IS_C_coeff_1[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(_cweno->IS_C_coeff_2[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i - 1] - yCrystal[i - 2]) + static_cast<ParamType>(_cweno->IS_C_coeff_3[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]) * (yCrystal[i] - yCrystal[i - 1]);
 							alpha_L = 0.25 / (static_cast<ParamType>(_binSizes[i]) + IS_L_square) / (static_cast<ParamType>(_binSizes[i]) + IS_L_square);
 							alpha_R = 0.25 / (static_cast<ParamType>(_binSizes[i]) + IS_R_square) / (static_cast<ParamType>(_binSizes[i]) + IS_R_square);
 							alpha_C = 0.5 / (static_cast<ParamType>(_binSizes[i]) + IS_C_square) / (static_cast<ParamType>(_binSizes[i]) + IS_C_square);
 							W_L = alpha_L / (alpha_L + alpha_R + alpha_C);
 							W_R = alpha_R / (alpha_L + alpha_R + alpha_C);
 							W_C = 1.0 - W_L - W_R;
-							P_L = yCrystal[i - 1] + static_cast<ParamType>(P_L_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
-							P_R = yCrystal[i - 1] + static_cast<ParamType>(P_R_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							P_C = yCrystal[i - 1] + static_cast<ParamType>(P_C_R_coeff_1[i]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(P_C_R_coeff_2[i]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							P_L = yCrystal[i - 1] + static_cast<ParamType>(_cweno->P_L_coeff[i - 1]) * (yCrystal[i - 1] - yCrystal[i - 2]);
+							P_R = yCrystal[i - 1] + static_cast<ParamType>(_cweno->P_R_coeff[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							P_C = yCrystal[i - 1] + static_cast<ParamType>(_cweno->P_C_R_coeff_1[i]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(_cweno->P_C_R_coeff_2[i]) * (yCrystal[i - 1] - yCrystal[i - 2]);
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_L * P_L + W_C * P_C + W_R * P_R) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// no flux BC
 						}
@@ -790,18 +869,18 @@ namespace cadet
 							// upwind applied to F_{1-1/2}
 							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// cweno applied to F_{1+1/2}
-							IS_L_square = static_cast<ParamType>(IS_L_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
-							IS_R_square = static_cast<ParamType>(IS_R_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
-							IS_C_square = static_cast<ParamType>(IS_C_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(IS_C_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(IS_C_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i + 1] - yCrystal[i]);
+							IS_L_square = static_cast<ParamType>(_cweno->IS_L_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
+							IS_R_square = static_cast<ParamType>(_cweno->IS_R_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
+							IS_C_square = static_cast<ParamType>(_cweno->IS_C_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_cweno->IS_C_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]) + static_cast<ParamType>(_cweno->IS_C_coeff_3[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i + 1] - yCrystal[i]);
 							alpha_L = 0.25 / (static_cast<ParamType>(_binSizes[i]) + IS_L_square) / (static_cast<ParamType>(_binSizes[i]) + IS_L_square);
 							alpha_R = 0.25 / (static_cast<ParamType>(_binSizes[i]) + IS_R_square) / (static_cast<ParamType>(_binSizes[i]) + IS_R_square);
 							alpha_C = 0.5 / (static_cast<ParamType>(_binSizes[i]) + IS_C_square) / (static_cast<ParamType>(_binSizes[i]) + IS_C_square);
 							W_L = alpha_L / (alpha_L + alpha_R + alpha_C);
 							W_R = alpha_R / (alpha_L + alpha_R + alpha_C);
 							W_C = 1.0 - W_L - W_R;
-							P_L = yCrystal[i] + static_cast<ParamType>(P_L_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]);
-							P_R = yCrystal[i] + static_cast<ParamType>(P_R_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]);
-							P_C = yCrystal[i] + static_cast<ParamType>(P_C_R_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(P_C_R_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
+							P_L = yCrystal[i] + static_cast<ParamType>(_cweno->P_L_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]);
+							P_R = yCrystal[i] + static_cast<ParamType>(_cweno->P_R_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]);
+							P_C = yCrystal[i] + static_cast<ParamType>(_cweno->P_C_R_coeff_1[i]) * (yCrystal[i + 1] - yCrystal[i]) + static_cast<ParamType>(_cweno->P_C_R_coeff_2[i]) * (yCrystal[i] - yCrystal[i - 1]);
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_L * P_L + W_C * P_C + W_R * P_R) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
