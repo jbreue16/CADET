@@ -16,6 +16,7 @@
 
 #include "model/parts/ConvectionDispersionOperator.hpp"
 #include "model/parts/AxialConvectionDispersionKernel.hpp"
+#include "model/parts/RadialConvectionDispersionKernel.hpp"
 #include "Weno.hpp"
 #include "AdUtils.hpp"
 #include "SimulationTypes.hpp"
@@ -112,7 +113,7 @@ namespace
 		}	
 	}
 
-	inline cadet::active* createAndConfigureOperator(cadet::model::parts::ConvectionDispersionOperator& convDispOp, int& nComp, int& nCol, int wenoOrder)
+	inline cadet::active* createAndConfigureOperator(cadet::model::parts::AxialConvectionDispersionOperator& convDispOp, int& nComp, int& nCol, int wenoOrder)
 	{
 		// Obtain parameters from some test case
 		cadet::JsonParameterProvider jpp = createColumnWithSMA("GENERAL_RATE_MODEL");
@@ -145,7 +146,7 @@ void testResidualBulkWenoForwardBackward(int wenoOrder)
 	{
 		int nComp = 0;
 		int nCol = 0;
-		cadet::model::parts::ConvectionDispersionOperator convDispOp;
+		cadet::model::parts::AxialConvectionDispersionOperator convDispOp;
 		cadet::active* const velocity = createAndConfigureOperator(convDispOp, nComp, nCol, wenoOrder);
 		const double origVelocity = velocity->getValue();
 
@@ -233,7 +234,7 @@ void testTimeDerivativeBulkJacobianFD(double h, double absTol, double relTol)
 {
 	int nComp = 0;
 	int nCol = 0;
-	cadet::model::parts::ConvectionDispersionOperator convDispOp;
+	cadet::model::parts::AxialConvectionDispersionOperator convDispOp;
 	createAndConfigureOperator(convDispOp, nComp, nCol, cadet::Weno::maxOrder());
 
 	// Setup matrices
@@ -264,8 +265,8 @@ void testBulkJacobianWenoForwardBackward(int wenoOrder)
 	{
 		int nComp = 0;
 		int nCol = 0;
-		cadet::model::parts::ConvectionDispersionOperator opAna;
-		cadet::model::parts::ConvectionDispersionOperator opAD;
+		cadet::model::parts::AxialConvectionDispersionOperator opAna;
+		cadet::model::parts::AxialConvectionDispersionOperator opAD;
 		cadet::active* const anaVelocity = createAndConfigureOperator(opAna, nComp, nCol, wenoOrder);
 		cadet::active* const adVelocity = createAndConfigureOperator(opAD, nComp, nCol, wenoOrder);
 
@@ -510,26 +511,26 @@ void testBulkJacobianSparseBandedWeno(int wenoOrder, bool forwardFlow)
 	}
 }
 
-TEST_CASE("ConvectionDispersionOperator residual forward vs backward flow", "[Operator],[Residual]")
+TEST_CASE("AxialConvectionDispersionOperator residual forward vs backward flow", "[Operator],[AxialFlow],[Residual]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 		testResidualBulkWenoForwardBackward(i);
 }
 
-TEST_CASE("ConvectionDispersionOperator time derivative Jacobian vs FD", "[Operator],[Residual],[Jacobian]")
+TEST_CASE("AxialConvectionDispersionOperator time derivative Jacobian vs FD", "[Operator],[AxialFlow],[Residual],[Jacobian]")
 {
 	testTimeDerivativeBulkJacobianFD(1e-6, 0.0, 1e-5);
 }
 
-TEST_CASE("ConvectionDispersionOperator Jacobian forward vs backward flow", "[Operator],[Residual],[Jacobian],[AD]")
+TEST_CASE("AxialConvectionDispersionOperator Jacobian forward vs backward flow", "[Operator],[AxialFlow],[Residual],[Jacobian],[AD]")
 {
 	// Test all WENO orders
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 		testBulkJacobianWenoForwardBackward(i);
 }
 
-TEST_CASE("ConvectionDispersionKernel Jacobian sparsity pattern vs FD", "[Operator],[Residual],[Jacobian],[SparseMatrix]")
+TEST_CASE("AxialConvectionDispersionKernel Jacobian sparsity pattern vs FD", "[Operator],[AxialFlow],[Residual],[Jacobian],[SparseMatrix]")
 {
 	SECTION("Forward flow")
 	{
@@ -545,7 +546,7 @@ TEST_CASE("ConvectionDispersionKernel Jacobian sparsity pattern vs FD", "[Operat
 	}
 }
 
-TEST_CASE("ConvectionDispersionKernel Jacobian sparse vs banded", "[Operator],[Jacobian],[SparseMatrix]")
+TEST_CASE("AxialConvectionDispersionKernel Jacobian sparse vs banded", "[Operator],[AxialFlow],[Jacobian],[SparseMatrix]")
 {
 	SECTION("Forward flow")
 	{
