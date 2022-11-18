@@ -119,7 +119,7 @@ namespace impl
 				// Right side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					resBulkComp[col * p.strideCell] -= d_rad * p.cellBounds[col+1] / denom * (stencil[1] - stencil[0]) / (p.cellCenters[col+1] - p.cellCenters[col]);
+					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -132,7 +132,7 @@ namespace impl
 				// Left side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					resBulkComp[col * p.strideCell] -= d_rad * p.cellBounds[col] / denom * (stencil[-1] - stencil[0]) / (p.cellCenters[col-1] - p.cellCenters[col]);
+					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col-1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -181,7 +181,7 @@ namespace impl
 				}
 
 				// Right side
-				resBulkComp[col * p.strideCell] += p.u / p.h * vm;
+				resBulkComp[col * p.strideCell] += p.u / denom * vm;
 				// Jacobian entries
 				if (wantJac)
 				{
@@ -273,7 +273,7 @@ namespace impl
 				// Right side, leave out if we're in the first cell (boundary condition)
 				if (cadet_likely(col < p.nCol - 1))
 				{
-					resBulkComp[col * p.strideCell] -= d_rad * p.cellBounds[col+1] / denom * (stencil[-1] - stencil[0]) / (p.cellCenters[col+1] - p.cellCenters[col]);
+					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col+1]) / denom * (stencil[-1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col+1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -286,7 +286,7 @@ namespace impl
 				// Left side, leave out if we're in the last cell (boundary condition)
 				if (cadet_likely(col > 0))
 				{
-					resBulkComp[col * p.strideCell] -= d_rad * p.cellBounds[col] / denom * (stencil[1] - stencil[0]) / (p.cellCenters[col-1] - p.cellCenters[col]);
+					resBulkComp[col * p.strideCell] -= d_rad * static_cast<ParamType>(p.cellBounds[col]) / denom * (stencil[1] - stencil[0]) / (static_cast<ParamType>(p.cellCenters[col-1]) - static_cast<ParamType>(p.cellCenters[col]));
 					// Jacobian entries
 					if (wantJac)
 					{
@@ -311,7 +311,7 @@ namespace impl
 						for (int i = 0; i < 2 * wenoOrder - 1; ++i)
 							// Note that we have an offset of +1 here (compared to the left cell face below), since
 							// the reconstructed value depends on the previous stencil (which has now been moved by one cell)
-							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(denom) * p.wenoDerivatives[i];					
+							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(denom);
 					}
 				}
 				else

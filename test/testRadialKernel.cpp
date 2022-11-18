@@ -16,6 +16,10 @@
 
 #include "model/parts/RadialConvectionDispersionKernel.hpp"
 #include "linalg/BandMatrix.hpp"
+#include "Memory.hpp"
+#include "AutoDiff.hpp"
+
+#include "io/hdf5/HDF5Writer.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -43,12 +47,24 @@
 class RadialFlowModel : public cadet::test::IDiffEqModel
 {
 public:
-	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol)
+	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol), _stencilMemory(sizeof(cadet::active) * 5)
 	{
 		const int nDof = (_nCol + 1) * _nComp;
 		_jacDisc.resize(nDof, 2 * nComp, 2 * nComp);
 		_jac.resize(nDof, 2 * nComp, 2 * nComp);
 
+		_radDispersion = std::vector<cadet::active>(_nComp, 1e-7);
+		
+		const double colLen = 0.1;
+
+		equidistantCells(0.1, 0.5, _nCol);
+
+		_params.u = -1.0 * fromVolumetricFlowRate(8e-2, colLen);
+		_params.d_rad = _radDispersion.data();
+		_params.cellBounds = _cellBounds.data();
+		_params.cellCenters = _cellCenters.data();
+		_params.cellSizes = _cellCenters.data();
+		_params.stencilMemory = &_stencilMemory;
 		_params.offsetToBulk = _nComp;
 		_params.nCol = _nCol;
 		_params.nComp = _nComp;
@@ -57,6 +73,7 @@ public:
 	}
 	virtual ~RadialFlowModel() CADET_NOEXCEPT { }
 
+	int numPureDofs() const CADET_NOEXCEPT { return _nComp * _nCol; }
 	virtual int numDofs() const CADET_NOEXCEPT { return _nComp * (_nCol + 1); }
 
 	virtual void notifyDiscontinuousSectionTransition(double t, int secIdx, double* vecStateY, double* vecStateYdot)
@@ -87,13 +104,13 @@ public:
 
 		// Inlet-Bulk coupling Jacobian
 		const int idxInletCell = (_params.u >= 0.0) ? 0 : _nCol - 1;
-		const double factor = _params.u / (_params.cellCenters[idxInletCell] * _params.cellSizes[idxInletCell]);
+		const double factor = static_cast<double>(_params.u) / (static_cast<double>(_params.cellCenters[idxInletCell]) * static_cast<double>(_params.cellSizes[idxInletCell]));
 		for (int i = 0; i < _nComp; ++i)
 			_jac.centered(i + _nComp, -_nComp) = -factor;
 
-		return cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::linalg::BandedRowIterator, true>(
-			cadet::SimulationTime{time, secIdx},
-			vecStateY, vecStateYdot, res, _jac.row(), _params
+		return cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::linalg::BandMatrix::RowIterator, true>(
+			cadet::SimulationTime{time, static_cast<unsigned int>(secIdx)},
+			vecStateY, vecStateYdot, res, _jac.row(_nComp), _params
 		);
 	}
 
@@ -109,9 +126,9 @@ public:
 
 		// Add time derivative
 		cadet::linalg::FactorizableBandMatrix::RowIterator jac = _jacDisc.row(_nComp);
-		for (unsigned int i = 0; i < _nCol; ++i)
+		for (int i = 0; i < _nCol; ++i)
 		{
-			for (unsigned int j = 0; j < _nComp; ++j, ++jac)
+			for (int j = 0; j < _nComp; ++j, ++jac)
 			{
 				// Add time derivative to main diagonal
 				jac[0] += alpha;
@@ -134,12 +151,43 @@ public:
 
 	virtual void saveSolution(double t, double const* vecStateY, double const* vecStateYdot)
 	{
+		const int nTimeSaved = _solTimes.size();
 		_solTimes.push_back(t);
 
-		const int nDof = numDofs();
+		const int nDof = numPureDofs();
 		_solution.resize(_solution.size() + nDof);
-		std::copy(vecStateY, vecStateY + nDof, _solution.data() + _solPos);
-		_solPos += nDof;
+		std::copy(vecStateY + _nComp, vecStateY + nDof + _nComp, _solution.data() + nTimeSaved * nDof);
+
+		_solutionInlet.resize(_solutionInlet.size() + _nComp);
+		std::copy(vecStateY, vecStateY + _nComp, _solutionInlet.data() + nTimeSaved * _nComp);
+
+		_solutionOutlet.resize(_solutionOutlet.size() + _nComp);
+		if (_params.u > 0.0)
+		{
+			// Flow from inner to outer
+			std::copy(vecStateY + nDof, vecStateY + nDof + _nComp, _solutionOutlet.data() + nTimeSaved * _nComp);
+		}
+		else
+		{
+			// Flow from outer to inner
+			std::copy(vecStateY + _nComp, vecStateY + 2 * _nComp, _solutionOutlet.data() + nTimeSaved * _nComp);
+		}
+	}
+
+	const std::vector<double>& solutionTimes() const CADET_NOEXCEPT { return _solTimes; }
+	const std::vector<double>& solution() const CADET_NOEXCEPT { return _solution; }
+	const std::vector<double>& solutionInlet() const CADET_NOEXCEPT { return _solutionInlet; }
+	const std::vector<double>& solutionOutlet() const CADET_NOEXCEPT { return _solutionOutlet; }
+	int numComp() const CADET_NOEXCEPT { return _nComp; }
+	int numCol() const CADET_NOEXCEPT { return _nCol; }
+
+	std::vector<double> coordinates() const CADET_NOEXCEPT
+	{
+		std::vector<double> coords(_cellCenters.size(), 0.0);
+		for (int i = 0; i < _cellCenters.size(); ++i)
+			coords[i] = static_cast<double>(_cellCenters[i]);
+		
+		return coords;
 	}
 
 protected:
@@ -150,13 +198,51 @@ protected:
 	cadet::linalg::BandMatrix _jac;
 	cadet::linalg::FactorizableBandMatrix _jacDisc;
 
+	std::vector<cadet::active> _radDispersion;
+	std::vector<cadet::active> _cellCenters;
+	std::vector<cadet::active> _cellSizes;
+	std::vector<cadet::active> _cellBounds;
+	cadet::ArrayPool _stencilMemory;
+
 	std::vector<double> _solTimes;
 	std::vector<double> _solution;
-	int _solPos;
+	std::vector<double> _solutionInlet;
+	std::vector<double> _solutionOutlet;
 
 	double inlet(double t, int secIdx, int comp) const CADET_NOEXCEPT
 	{
+		if (t <= 10.0)
+			return 0.1 * t;
+		if (t <= 50.0)
+			return 1.0;
+		if (t <= 60.0)
+			return 1.0 - (t-50.0) * 0.1;
 		return 0.0;
+//		return 1.0;
+	}
+
+	void equidistantCells(double inner, double outer, int nCol)
+	{
+		const double dr = (outer - inner) / nCol;
+		std::vector<cadet::active> centers(nCol, 0.0);
+		_cellSizes = std::vector<cadet::active>(nCol, dr);
+		std::vector<cadet::active> bounds(nCol + 1, 0.0);
+
+		for (int i = 0; i < nCol; ++i)
+		{
+			centers[i] = (i + 0.5) * dr;
+			bounds[i] = i * dr;
+		}
+		bounds[nCol] = outer;
+
+		_cellCenters = std::move(centers);
+		_cellBounds = std::move(bounds);
+	}
+
+	double fromVolumetricFlowRate(double volRate, double len)
+	{
+		const double pi = 3.14159265358979323846;
+		return volRate / (pi * 2.0 * len);
 	}
 };
 
@@ -171,14 +257,14 @@ int main(int argc, char* argv[])
 	cadet::setLogLevel(logLevel);
 #endif
 
-	const double tEnd = 100.0;
+	const double tEnd = 160.0;
 	std::vector<double> secTimes = {0.0, tEnd};
-	std::vector<double> solTimes(101, 0.0);
+	std::vector<double> solTimes(161, 0.0);
 
 	for (int i = 0; i <= tEnd; ++i)
 		solTimes[i] = i;
 
-	RadialFlowModel model;
+	RadialFlowModel model(1, 200);
 
 	cadet::test::TimeIntegrator sim;	
 	sim.configureTimeIntegrator(1e-6, 1e-8, 1e-4, 100000, 0.0);
@@ -188,5 +274,14 @@ int main(int argc, char* argv[])
 
 	sim.integrate();
 
+	cadet::io::HDF5Writer writer;
+	writer.openFile("radial.h5", "co");
+	writer.vector("SOLUTION_TIMES", model.solutionTimes());
+	const std::vector<std::size_t> dims = {model.solutionTimes().size(), static_cast<std::size_t>(model.numCol()), static_cast<std::size_t>(model.numComp())};
+	writer.template tensor<double>("SOLUTION", 3, dims.data(), model.solution());
+	writer.template matrix<double>("SOLUTION_INLET", model.solutionTimes().size(), model.numComp(), model.solutionInlet());
+	writer.template matrix<double>("SOLUTION_OUTLET", model.solutionTimes().size(), model.numComp(), model.solutionOutlet());
+	writer.template vector<double>("COORDS", model.coordinates());
+	writer.closeFile();
 	return 0;
 }
