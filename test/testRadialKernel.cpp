@@ -49,17 +49,17 @@ class RadialFlowModel : public cadet::test::IDiffEqModel
 public:
 	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol), _stencilMemory(sizeof(cadet::active) * 5)
 	{
-		const int nDof = (_nCol + 1) * _nComp;
-		_jacDisc.resize(nDof, 2 * nComp, 2 * nComp);
-		_jac.resize(nDof, 2 * nComp, 2 * nComp);
+		const int nPureDof = _nCol * _nComp;
+		_jacDisc.resize(nPureDof, 2 * nComp, 2 * nComp);
+		_jac.resize(nPureDof, 2 * nComp, 2 * nComp);
 
 		_radDispersion = std::vector<cadet::active>(_nComp, 1e-7);
-		
+
 		const double colLen = 0.1;
 
 		equidistantCells(0.1, 0.5, _nCol);
 
-		_params.u = -1.0 * fromVolumetricFlowRate(8e-2, colLen);
+		_params.u = 1.0 * fromVolumetricFlowRate(8e-2, colLen);
 		_params.d_rad = _radDispersion.data();
 		_params.cellBounds = _cellBounds.data();
 		_params.cellCenters = _cellCenters.data();
@@ -95,22 +95,13 @@ public:
 	{
 		_jac.setAll(0.0);
 
-		// Inlet block: val - c_i = 0
+		// Inlet block: c_i - val = 0
 		for (int i = 0; i < _nComp; ++i)
-		{
-			_jac.centered(i, 0) = -1.0;
-			res[i] = inlet(time, secIdx, i) - vecStateY[i];
-		}
-
-		// Inlet-Bulk coupling Jacobian
-		const int idxInletCell = (_params.u >= 0.0) ? 0 : _nCol - 1;
-		const double factor = static_cast<double>(_params.u) / (static_cast<double>(_params.cellCenters[idxInletCell]) * static_cast<double>(_params.cellSizes[idxInletCell]));
-		for (int i = 0; i < _nComp; ++i)
-			_jac.centered(i + _nComp, -_nComp) = -factor;
+			res[i] = vecStateY[i] - inlet(time, secIdx, i);
 
 		return cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::linalg::BandMatrix::RowIterator, true>(
 			cadet::SimulationTime{time, static_cast<unsigned int>(secIdx)},
-			vecStateY, vecStateYdot, res, _jac.row(_nComp), _params
+			vecStateY, vecStateYdot, res, _jac.row(0), _params
 		);
 	}
 
@@ -125,7 +116,7 @@ public:
 		_jacDisc.copyOver(_jac);
 
 		// Add time derivative
-		cadet::linalg::FactorizableBandMatrix::RowIterator jac = _jacDisc.row(_nComp);
+		cadet::linalg::FactorizableBandMatrix::RowIterator jac = _jacDisc.row(0);
 		for (int i = 0; i < _nCol; ++i)
 		{
 			for (int j = 0; j < _nComp; ++j, ++jac)
@@ -137,7 +128,19 @@ public:
 
 		if (!_jacDisc.factorize())
 			return 1;
-		if (!_jacDisc.solve(rhs))
+
+		// Inlet-Bulk coupling Jacobian
+		// A * inlet + J * x = rhs
+		// J * x = rhs - A * inlet
+		const int idxInletCell = (_params.u >= 0.0) ? 0 : _nCol - 1;
+		const double factor = static_cast<double>(_params.u) / (static_cast<double>(_params.cellCenters[idxInletCell]) * static_cast<double>(_params.cellSizes[idxInletCell]));
+		double* const rhsBulkInlet = rhs + _nComp * (idxInletCell + 1);
+		for (int i = 0; i < _nComp; ++i)
+		{
+			rhsBulkInlet[i] -= -factor * rhs[i];
+		}
+
+		if (!_jacDisc.solve(rhs + _nComp))
 			return 1;
 		return 0;
 	}
