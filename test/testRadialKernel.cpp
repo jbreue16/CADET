@@ -57,7 +57,8 @@ public:
 
 		const double colLen = 0.1;
 
-		equidistantCells(0.1, 0.5, _nCol);
+//		equidistantCells(0.1, 0.4, _nCol);
+		equidistantCells(1.0, 4.0, _nCol);
 
 		_params.u = 1.0 * fromVolumetricFlowRate(8e-2, colLen);
 		_params.d_rad = _radDispersion.data();
@@ -83,6 +84,39 @@ public:
 			// Consistent init
 			std::fill_n(vecStateY, numDofs(), 0.0);
 			std::fill_n(vecStateYdot, numDofs(), 0.0);
+
+			for (int i = 0; i < _nComp; ++i)
+				vecStateY[i] = inlet(0.0, 0, i);
+
+/*
+			const double pi = 3.14159265358979323846;
+			const double rOut = static_cast<double>(_cellBounds.back());
+			const double fourPiOverRout = 4.0 * pi / rOut;
+			const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
+			const double expFactor = std::exp(-0.125 * tMinusFiveSq);
+
+			int idx = _nComp;
+			for (int i = 0; i < _nCol; ++i)
+			{
+				const double denom = static_cast<double>(_cellCenters[i]) * static_cast<double>(_cellSizes[i]);
+				const double left = static_cast<double>(_cellBounds[i]);
+				const double right = static_cast<double>(_cellBounds[i+1]);
+
+				const double val = (right * right - left*left) / denom + (std::sin(fourPiOverRout * right) * right - std::sin(fourPiOverRout * left) * left + (std::cos(fourPiOverRout * right) - std::cos(fourPiOverRout * left)) / fourPiOverRout) / (fourPiOverRout * denom) * expFactor;
+				for (int comp = 0; comp < _nComp; ++comp, ++idx)
+				{
+					vecStateY[idx] = val;
+				}
+			}
+*/
+
+			std::vector<double> res(numDofs(), 0.0);
+			residual(t, secIdx, vecStateY, nullptr, res.data());
+
+			double const* const resBulk = res.data() + _nComp;
+			double* const yDot = vecStateYdot + _nComp;
+			for (int i = 0; i < numPureDofs(); ++i)
+				yDot[i] = -resBulk[i];
 		}
 	}
 
@@ -99,10 +133,80 @@ public:
 		for (int i = 0; i < _nComp; ++i)
 			res[i] = vecStateY[i] - inlet(time, secIdx, i);
 
-		return cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::linalg::BandMatrix::RowIterator, true>(
+		const int ret = cadet::model::parts::convdisp::residualKernelRadial<double, double, double, cadet::linalg::BandMatrix::RowIterator, true>(
 			cadet::SimulationTime{time, static_cast<unsigned int>(secIdx)},
 			vecStateY, vecStateYdot, res, _jac.row(0), _params
 		);
+
+#if 0
+		const double pi = 3.14159265358979323846;
+		const double rOut = static_cast<double>(_cellBounds.back());
+		const double fourPiOverRout = 4.0 * pi / rOut;
+		const double fourPiOverRoutSq = fourPiOverRout * fourPiOverRout;
+		const double tMinusFive = (time - 5.0);
+		const double tMinusFiveSq = tMinusFive * tMinusFive;
+		const double expFactor = std::exp(-0.125 * tMinusFiveSq);
+
+		int idx = _nComp;
+		for (int i = 0; i < _nCol; ++i)
+		{
+			const double denom = static_cast<double>(_cellCenters[i]) * static_cast<double>(_cellSizes[i]);
+			const double left = static_cast<double>(_cellBounds[i]);
+			const double right = static_cast<double>(_cellBounds[i+1]);
+
+			const double sinLeft = std::sin(fourPiOverRout * left);
+			const double cosLeft = std::cos(fourPiOverRout * left);
+			const double sinRight = std::sin(fourPiOverRout * right);
+			const double cosRight = std::cos(fourPiOverRout * right);
+
+			for (int comp = 0; comp < _nComp; ++comp, ++idx)
+			{
+				const double d_rad = static_cast<double>(_params.d_rad[comp]);
+				const double u = static_cast<double>(_params.u);
+				const double leftTerm = fourPiOverRout * left * sinLeft * d_rad + u * cosLeft;
+				const double rightTerm = fourPiOverRout * right * sinRight * d_rad + u * cosRight;
+
+				const double val = (tMinusFive * (left / (4.0 * fourPiOverRout) * sinLeft - right / (4.0 * fourPiOverRout) * sinRight + fourPiOverRoutSq / 4.0 * (-cosRight + cosLeft)) - leftTerm + rightTerm) * expFactor / denom;
+				res[idx] -= val;
+			}
+		}
+#else
+		const double pi = 3.14159265358979323846;
+		const double rOut = static_cast<double>(_cellBounds.back());
+		const double fourPiOverRout = 4.0 * pi / rOut;
+		const double tMinusFive = (time - 5.0);
+		const double tMinusFiveSq = tMinusFive * tMinusFive;
+		const double expFactor = std::exp(-0.125 * tMinusFiveSq);
+		const double tPoly = 4.0 + time * (5.0 - time);
+
+		int idx = _nComp;
+		for (int i = 0; i < _nCol; ++i)
+		{
+			const double denom = static_cast<double>(_cellCenters[i]) * static_cast<double>(_cellSizes[i]);
+			const double left = static_cast<double>(_cellBounds[i]);
+			const double right = static_cast<double>(_cellBounds[i+1]);
+
+			const double sinLeft = std::sin(fourPiOverRout * left);
+			const double cosLeft = std::cos(fourPiOverRout * left);
+			const double sinRight = std::sin(fourPiOverRout * right);
+			const double cosRight = std::cos(fourPiOverRout * right);
+
+			for (int comp = 0; comp < _nComp; ++comp, ++idx)
+			{
+				const double right1 = tPoly / (4.0 * fourPiOverRout) * (right * sinRight + cosRight / fourPiOverRout);
+				const double left1 = tPoly / (4.0 * fourPiOverRout) * (left * sinLeft + cosLeft / fourPiOverRout);
+
+				const double d_rad = static_cast<double>(_params.d_rad[comp]);
+				const double v = static_cast<double>(_params.u);
+				const double left2 = d_rad * fourPiOverRout * left * sinLeft + v * cosLeft;
+				const double right2 = d_rad * fourPiOverRout * right * sinRight + v * cosRight;
+
+				const double val = (right1 - left1 + time * (right2 - left2)) * expFactor / denom;
+				res[idx] -= val;
+			}
+		}
+#endif
+		return ret;
 	}
 
 	virtual double residualNorm(double time, int secIdx, double const* vecStateY, double const* vecStateYdot)
@@ -184,6 +288,108 @@ public:
 	int numComp() const CADET_NOEXCEPT { return _nComp; }
 	int numCol() const CADET_NOEXCEPT { return _nCol; }
 
+	const std::vector<double>& referenceSolution() CADET_NOEXCEPT
+	{
+		if (!_trueSolution.empty())
+			return _trueSolution;
+
+		_trueSolution = std::vector<double>(_solTimes.size() * numPureDofs(), 0.0);
+
+#if 0		
+		const double pi = 3.14159265358979323846;
+		const double fourPi = 4.0 * pi;
+		const double rOut = static_cast<double>(_cellBounds.back());
+
+		int idx = 0;
+		for (int i = 0; i < _solTimes.size(); ++i)
+		{
+			const double t = _solTimes[i];
+			const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
+			const double expFactor = std::exp(-0.125 * tMinusFiveSq);
+
+			for (int j = 0; j < _nCol; ++j)
+			{
+				const double r = static_cast<double>(_cellCenters[j]);
+				for (int comp = 0; comp < _nComp; ++comp, ++idx)
+				{
+					_trueSolution[idx] = std::cos(fourPi * r / rOut) * expFactor + 2.0;
+				}
+			}
+		}
+#elif 0
+		const double pi = 3.14159265358979323846;
+		const double rOut = static_cast<double>(_cellBounds.back());
+		const double fourPiOverRout = 4.0 * pi / rOut;
+
+		int idx = 0;
+		for (int i = 0; i < _solTimes.size(); ++i)
+		{
+			const double t = _solTimes[i];
+			const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
+			const double expFactor = std::exp(-0.125 * tMinusFiveSq);
+
+			for (int j = 0; j < _nCol; ++j)
+			{
+				const double denom = static_cast<double>(_cellCenters[j]) * static_cast<double>(_cellSizes[j]);
+				const double left = static_cast<double>(_cellBounds[j]);
+				const double right = static_cast<double>(_cellBounds[j+1]);
+
+				const double val = (right * right - left*left) / denom + (std::sin(fourPiOverRout * right) * right - std::sin(fourPiOverRout * left) * left + (std::cos(fourPiOverRout * right) - std::cos(fourPiOverRout * left)) / fourPiOverRout) / (fourPiOverRout * denom) * expFactor;
+				for (int comp = 0; comp < _nComp; ++comp, ++idx)
+				{
+					_trueSolution[idx] = val;
+				}
+			}
+		}
+#else
+		const double pi = 3.14159265358979323846;
+		const double fourPi = 4.0 * pi;
+		const double rOut = static_cast<double>(_cellBounds.back());
+
+		int idx = 0;
+		for (int i = 0; i < _solTimes.size(); ++i)
+		{
+			const double t = _solTimes[i];
+			const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
+			const double expFactor = t * std::exp(-0.125 * tMinusFiveSq);
+
+			for (int j = 0; j < _nCol; ++j)
+			{
+				const double r = static_cast<double>(_cellCenters[j]);
+				for (int comp = 0; comp < _nComp; ++comp, ++idx)
+				{
+					_trueSolution[idx] = std::cos(fourPi * r / rOut) * expFactor + 2.0;
+				}
+			}
+		}
+
+#endif
+		return _trueSolution;
+	}
+
+	const std::vector<double>& referenceOutlet() CADET_NOEXCEPT
+	{
+		if (!_trueOutlet.empty())
+			return _trueOutlet;
+
+		_trueOutlet = std::vector<double>(_solTimes.size() * _nComp, 0.0);
+
+		int idx = 0;
+		for (int i = 0; i < _solTimes.size(); ++i)
+		{
+			const double t = _solTimes[i];
+			const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
+			const double expFactor = std::exp(-0.125 * tMinusFiveSq);
+
+			for (int comp = 0; comp < _nComp; ++comp, ++idx)
+			{
+				_trueOutlet[idx] = expFactor + 2.0;
+			}
+		}
+
+		return _trueOutlet;
+	}
+
 	std::vector<double> coordinates() const CADET_NOEXCEPT
 	{
 		std::vector<double> coords(_cellCenters.size(), 0.0);
@@ -212,8 +418,12 @@ protected:
 	std::vector<double> _solutionInlet;
 	std::vector<double> _solutionOutlet;
 
+	std::vector<double> _trueSolution;
+	std::vector<double> _trueOutlet;
+
 	double inlet(double t, int secIdx, int comp) const CADET_NOEXCEPT
 	{
+/*
 		if (t <= 10.0)
 			return 0.1 * t;
 		if (t <= 50.0)
@@ -221,7 +431,15 @@ protected:
 		if (t <= 60.0)
 			return 1.0 - (t-50.0) * 0.1;
 		return 0.0;
+*/
 //		return 1.0;
+
+		const double pi = 3.14159265358979323846;
+		const double fourPiRinOverRout = 4.0 * pi * static_cast<double>(_cellBounds[0]) / static_cast<double>(_cellBounds.back());
+		const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
+		const double expFactor = t * std::exp(-0.125 * tMinusFiveSq);
+
+		return 2.0 + (fourPiRinOverRout * static_cast<double>(_params.d_rad[comp]) / static_cast<double>(_params.u) * std::sin(fourPiRinOverRout) + std::cos(fourPiRinOverRout)) * expFactor;
 	}
 
 	void equidistantCells(double inner, double outer, int nCol)
@@ -260,12 +478,20 @@ int main(int argc, char* argv[])
 	cadet::setLogLevel(logLevel);
 #endif
 
+/*
 	const double tEnd = 160.0;
 	std::vector<double> secTimes = {0.0, tEnd};
 	std::vector<double> solTimes(161, 0.0);
 
 	for (int i = 0; i <= tEnd; ++i)
 		solTimes[i] = i;
+*/
+	const double tEnd = 10.0;
+	std::vector<double> secTimes = {0.0, tEnd};
+	std::vector<double> solTimes(101, 0.0);
+
+	for (int i = 0; i < 101; ++i)
+		solTimes[i] = i * 0.1;
 
 	RadialFlowModel model(1, 200);
 
@@ -284,6 +510,8 @@ int main(int argc, char* argv[])
 	writer.template tensor<double>("SOLUTION", 3, dims.data(), model.solution());
 	writer.template matrix<double>("SOLUTION_INLET", model.solutionTimes().size(), model.numComp(), model.solutionInlet());
 	writer.template matrix<double>("SOLUTION_OUTLET", model.solutionTimes().size(), model.numComp(), model.solutionOutlet());
+	writer.template tensor<double>("REF", 3, dims.data(), model.referenceSolution());
+	writer.template matrix<double>("REF_OUTLET", model.solutionTimes().size(), model.numComp(), model.referenceOutlet());
 	writer.template vector<double>("COORDS", model.coordinates());
 	writer.closeFile();
 	return 0;
