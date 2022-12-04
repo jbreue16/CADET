@@ -25,6 +25,10 @@
 #include <iostream>
 #include <vector>
 
+//#define TEST_BREAKTHROUGH 1
+#define TEST_MANUFACTURED 1
+#define TEST_MANUFACTURED_TEXPT 1
+
 // Uncomment the next line to enable logging output of CADET in unit tests
 #define CADETTEST_ENABLE_LOG
 
@@ -53,18 +57,18 @@ public:
 		_jacDisc.resize(nPureDof, 2 * nComp, 2 * nComp);
 		_jac.resize(nPureDof, 2 * nComp, 2 * nComp);
 
-		_radDispersion = std::vector<cadet::active>(_nComp, 1e-7);
+		_radDispersion = std::vector<cadet::active>(_nComp, 1e-5);
 
 		const double colLen = 0.1;
 
 //		equidistantCells(0.1, 0.4, _nCol);
 		equidistantCells(1.0, 4.0, _nCol);
 
-		_params.u = 1.0 * fromVolumetricFlowRate(8e-2, colLen);
+		_params.u = fromVolumetricFlowRate(8e-1, colLen);
 		_params.d_rad = _radDispersion.data();
 		_params.cellBounds = _cellBounds.data();
 		_params.cellCenters = _cellCenters.data();
-		_params.cellSizes = _cellCenters.data();
+		_params.cellSizes = _cellSizes.data();
 		_params.stencilMemory = &_stencilMemory;
 		_params.offsetToBulk = _nComp;
 		_params.nCol = _nCol;
@@ -88,7 +92,7 @@ public:
 			for (int i = 0; i < _nComp; ++i)
 				vecStateY[i] = inlet(0.0, 0, i);
 
-/*
+#if defined(TEST_MANUFACTURED) && !defined(TEST_MANUFACTURED_TEXPT)
 			const double pi = 3.14159265358979323846;
 			const double rOut = static_cast<double>(_cellBounds.back());
 			const double fourPiOverRout = 4.0 * pi / rOut;
@@ -108,7 +112,21 @@ public:
 					vecStateY[idx] = val;
 				}
 			}
-*/
+#elif defined(TEST_MANUFACTURED) && defined(TEST_MANUFACTURED_TEXPT)
+			int idx = _nComp;
+			for (int i = 0; i < _nCol; ++i)
+			{
+				const double denom = static_cast<double>(_cellCenters[i]) * static_cast<double>(_cellSizes[i]);
+				const double left = static_cast<double>(_cellBounds[i]);
+				const double right = static_cast<double>(_cellBounds[i+1]);
+
+				const double val = (right * right - left*left) / denom;
+				for (int comp = 0; comp < _nComp; ++comp, ++idx)
+				{
+					vecStateY[idx] = val;
+				}
+			}
+#endif
 
 			std::vector<double> res(numDofs(), 0.0);
 			residual(t, secIdx, vecStateY, nullptr, res.data());
@@ -117,7 +135,9 @@ public:
 			double* const yDot = vecStateYdot + _nComp;
 			for (int i = 0; i < numPureDofs(); ++i)
 				yDot[i] = -resBulk[i];
+
 		}
+
 	}
 
 	virtual int residual(double time, int secIdx, double const* vecStateY, double const* vecStateYdot, double* res)
@@ -138,7 +158,8 @@ public:
 			vecStateY, vecStateYdot, res, _jac.row(0), _params
 		);
 
-#if 0
+
+#if defined(TEST_MANUFACTURED) && !defined(TEST_MANUFACTURED_TEXPT)
 		const double pi = 3.14159265358979323846;
 		const double rOut = static_cast<double>(_cellBounds.back());
 		const double fourPiOverRout = 4.0 * pi / rOut;
@@ -170,7 +191,7 @@ public:
 				res[idx] -= val;
 			}
 		}
-#else
+#elif defined(TEST_MANUFACTURED) && defined(TEST_MANUFACTURED_TEXPT)
 		const double pi = 3.14159265358979323846;
 		const double rOut = static_cast<double>(_cellBounds.back());
 		const double fourPiOverRout = 4.0 * pi / rOut;
@@ -206,6 +227,7 @@ public:
 			}
 		}
 #endif
+
 		return ret;
 	}
 
@@ -295,7 +317,8 @@ public:
 
 		_trueSolution = std::vector<double>(_solTimes.size() * numPureDofs(), 0.0);
 
-#if 0		
+
+#if defined(TEST_MANUFACTURED) && !defined(TEST_MANUFACTURED_TEXPT)
 		const double pi = 3.14159265358979323846;
 		const double fourPi = 4.0 * pi;
 		const double rOut = static_cast<double>(_cellBounds.back());
@@ -306,6 +329,27 @@ public:
 			const double t = _solTimes[i];
 			const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
 			const double expFactor = std::exp(-0.125 * tMinusFiveSq);
+
+			for (int j = 0; j < _nCol; ++j)
+			{
+				const double r = static_cast<double>(_cellCenters[j]);
+				for (int comp = 0; comp < _nComp; ++comp, ++idx)
+				{
+					_trueSolution[idx] = std::cos(fourPi * r / rOut) * expFactor + 2.0;
+				}
+			}
+		}
+#elif defined(TEST_MANUFACTURED) && defined(TEST_MANUFACTURED_TEXPT)
+		const double pi = 3.14159265358979323846;
+		const double fourPi = 4.0 * pi;
+		const double rOut = static_cast<double>(_cellBounds.back());
+
+		int idx = 0;
+		for (int i = 0; i < _solTimes.size(); ++i)
+		{
+			const double t = _solTimes[i];
+			const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
+			const double expFactor = t * std::exp(-0.125 * tMinusFiveSq);
 
 			for (int j = 0; j < _nCol; ++j)
 			{
@@ -341,29 +385,9 @@ public:
 				}
 			}
 		}
-#else
-		const double pi = 3.14159265358979323846;
-		const double fourPi = 4.0 * pi;
-		const double rOut = static_cast<double>(_cellBounds.back());
-
-		int idx = 0;
-		for (int i = 0; i < _solTimes.size(); ++i)
-		{
-			const double t = _solTimes[i];
-			const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
-			const double expFactor = t * std::exp(-0.125 * tMinusFiveSq);
-
-			for (int j = 0; j < _nCol; ++j)
-			{
-				const double r = static_cast<double>(_cellCenters[j]);
-				for (int comp = 0; comp < _nComp; ++comp, ++idx)
-				{
-					_trueSolution[idx] = std::cos(fourPi * r / rOut) * expFactor + 2.0;
-				}
-			}
-		}
-
 #endif
+
+
 		return _trueSolution;
 	}
 
@@ -432,14 +456,19 @@ protected:
 			return 1.0 - (t-50.0) * 0.1;
 		return 0.0;
 */
-//		return 1.0;
 
+#ifdef TEST_BREAKTHROUGH
+		return 1.0;
+
+#elif defined(TEST_MANUFACTURED)
 		const double pi = 3.14159265358979323846;
 		const double fourPiRinOverRout = 4.0 * pi * static_cast<double>(_cellBounds[0]) / static_cast<double>(_cellBounds.back());
 		const double tMinusFiveSq = (t - 5.0) * (t - 5.0);
 		const double expFactor = t * std::exp(-0.125 * tMinusFiveSq);
 
 		return 2.0 + (fourPiRinOverRout * static_cast<double>(_params.d_rad[comp]) / static_cast<double>(_params.u) * std::sin(fourPiRinOverRout) + std::cos(fourPiRinOverRout)) * expFactor;
+#endif
+
 	}
 
 	void equidistantCells(double inner, double outer, int nCol)
@@ -451,8 +480,8 @@ protected:
 
 		for (int i = 0; i < nCol; ++i)
 		{
-			centers[i] = (i + 0.5) * dr;
-			bounds[i] = i * dr;
+			centers[i] = (i + 0.5) * dr + inner;
+			bounds[i] = i * dr + inner;
 		}
 		bounds[nCol] = outer;
 
@@ -478,22 +507,25 @@ int main(int argc, char* argv[])
 	cadet::setLogLevel(logLevel);
 #endif
 
-/*
-	const double tEnd = 160.0;
-	std::vector<double> secTimes = {0.0, tEnd};
-	std::vector<double> solTimes(161, 0.0);
+#if 1
 
-	for (int i = 0; i <= tEnd; ++i)
-		solTimes[i] = i;
-*/
+	const double tEnd = 10.0;
+	std::vector<double> secTimes = {0.0, tEnd};
+	std::vector<double> solTimes(101, 0.0);
+
+	for (int i = 0; i < solTimes.size(); ++i)
+		solTimes[i] = i * 0.1;
+
+#elif 0
 	const double tEnd = 10.0;
 	std::vector<double> secTimes = {0.0, tEnd};
 	std::vector<double> solTimes(101, 0.0);
 
 	for (int i = 0; i < 101; ++i)
 		solTimes[i] = i * 0.1;
+#endif
 
-	RadialFlowModel model(1, 200);
+	RadialFlowModel model(1, 1250);
 
 	cadet::test::TimeIntegrator sim;	
 	sim.configureTimeIntegrator(1e-6, 1e-8, 1e-4, 100000, 0.0);
