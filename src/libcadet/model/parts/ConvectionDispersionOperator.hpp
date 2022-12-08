@@ -305,6 +305,9 @@ public:
 	inline bool forwardFlow() const CADET_NOEXCEPT { return _baseOp.currentVelocity() >= 0.0; }
 	inline double inletJacobianFactor() const CADET_NOEXCEPT { return _baseOp.inletJacobianFactor(); }
 
+	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return _baseOp.cellCenter(idx); }
+	inline double relativeCoordinate(unsigned int idx) const CADET_NOEXCEPT { return _baseOp.relativeCoordinate(idx); }
+
 	inline linalg::BandMatrix& jacobian() CADET_NOEXCEPT { return _jacC; }
 	inline const linalg::BandMatrix& jacobian() const CADET_NOEXCEPT { return _jacC; }
 

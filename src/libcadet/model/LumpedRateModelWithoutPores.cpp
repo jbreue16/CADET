@@ -355,7 +355,7 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::notifyDiscontinuousSectionTr
 {
 	Indexer idxr(_disc);
 
-	// AxialConvectionDispersionOperator tells us whether flow direction has changed
+	// ConvectionDispersionOperator tells us whether flow direction has changed
 	if (!_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx) && (secIdx != 0))
 		return;
 
@@ -1892,7 +1892,7 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::Exporter::writeOutlet(unsigne
 {
 	cadet_assert(port == 0);
 
-	if (_model._convDispOp.currentVelocity() >= 0)
+	if (_model._convDispOp.forwardFlow())
 		std::copy_n(&_idx.c(_data, _disc.nCol - 1, 0), _disc.nComp, buffer);
 	else
 		std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
@@ -1903,7 +1903,7 @@ int LumpedRateModelWithoutPores<ConvDispOperator>::Exporter::writeOutlet(unsigne
 template <typename ConvDispOperator>
 int LumpedRateModelWithoutPores<ConvDispOperator>::Exporter::writeOutlet(double* buffer) const
 {
-	if (_model._convDispOp.currentVelocity() >= 0)
+	if (_model._convDispOp.forwardFlow())
 		std::copy_n(&_idx.c(_data, _disc.nCol - 1, 0), _disc.nComp, buffer);
 	else
 		std::copy_n(&_idx.c(_data, 0, 0), _disc.nComp, buffer);
