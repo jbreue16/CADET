@@ -116,7 +116,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::usesAD() const CADET_NOEXCEPT
 }
 
 template <typename ConvDispOperator>
-bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, IConfigHelper& helper)
+bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper)
 {
 	// ==== Read discretization
 	_disc.nComp = paramProvider.getInt("NCOMP");
@@ -235,7 +235,7 @@ bool LumpedRateModelWithPores<ConvDispOperator>::configureModelDiscretization(IP
 
 	paramProvider.popScope();
 
-	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, _disc.nComp, _disc.nCol);
+	const bool transportSuccess = _convDispOp.configureModelDiscretization(paramProvider, helper, _disc.nComp, _disc.nCol);
 
 	// Allocate memory
 	Indexer idxr(_disc);

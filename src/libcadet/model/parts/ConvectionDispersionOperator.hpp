@@ -33,6 +33,7 @@ namespace cadet
 {
 
 class IParameterProvider;
+class IConfigHelper;
 struct AdJacobianParams;
 struct SimulationTime;
 
@@ -69,7 +70,7 @@ public:
 
 	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
-	bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int strideCell);
+	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int strideCell);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
@@ -172,7 +173,7 @@ public:
 
 	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
-	bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol, unsigned int strideCell);
+	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol, unsigned int strideCell);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
@@ -278,7 +279,7 @@ public:
 
 	void setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT;
 
-	bool configureModelDiscretization(IParameterProvider& paramProvider, unsigned int nComp, unsigned int nCol);
+	bool configureModelDiscretization(IParameterProvider& paramProvider, const IConfigHelper& helper, unsigned int nComp, unsigned int nCol);
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
 
