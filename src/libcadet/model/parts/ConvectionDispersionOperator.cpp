@@ -676,9 +676,11 @@ bool RadialConvectionDispersionOperatorBase::notifyDiscontinuousSectionTransitio
  */
 void RadialConvectionDispersionOperatorBase::setFlowRates(const active& in, const active& out, const active& colPorosity) CADET_NOEXCEPT
 {
+	const double pi = 3.1415926535897932384626434;
+
 	// If we have cross section area, interstitial velocity is given by network flow rates
 	if (_colLength > 0.0)
-		_curVelocity = _dir * in / (2.0 * M_PI * _colLength * colPorosity);
+		_curVelocity = _dir * in / (2.0 * pi * _colLength * colPorosity);
 }
 
 /**

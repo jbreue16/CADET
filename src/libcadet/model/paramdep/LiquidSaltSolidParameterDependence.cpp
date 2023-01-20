@@ -307,7 +307,7 @@ namespace paramdep
 		paramDeps[PowerLiquidSaltSolidParameterStateDependence::identifier()] = []() { return new PowerLiquidSaltSolidParameterStateDependence(); };
 		paramDeps[ColloidalAffinityLiquidSaltSolidParameterStateDependence::identifier()] = []() { return new ColloidalAffinityLiquidSaltSolidParameterStateDependence(); };
 	}
-}  // namespace reaction
+}  // namespace paramdep
 
 }  // namespace model
 

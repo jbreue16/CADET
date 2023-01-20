@@ -30,7 +30,7 @@
 #define TEST_MANUFACTURED_TEXPT 1
 
 // Uncomment the next line to enable logging output of CADET in unit tests
-#define CADETTEST_ENABLE_LOG
+//#define CADETTEST_ENABLE_LOG
 
 #ifdef CADETTEST_ENABLE_LOG
 	#include "cadet/Logging.hpp"

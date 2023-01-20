@@ -107,13 +107,13 @@ protected:
 	}
 
 	template <typename ParamType>
-	ParamType getValue(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd) const
+	ParamType getValueImpl(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd) const
 	{
 		return 0.0;
 	}
 
 	template <typename ParamType>
-	ParamType getValue(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd, const ParamType& val) const
+	ParamType getValueImpl(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd, const ParamType& val) const
 	{
 		return 0.0;
 	}

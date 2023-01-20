@@ -241,25 +241,25 @@ protected:
  *          
  *          The implementation is inserted inline in the class declaration.
  */
-#define CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE                                                                                                                                              \
+#define CADET_PARAMETERPARAMETERDEPENDENCE_BOILERPLATE                                                                                                                                          \
 	virtual double getValue(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd, double val) const        \
 	{                                                                                                                                                                                           \
-		return getValue<double>(unitOpIdx, params, colPos, comp, parType, bnd, val);                                                                                                            \
+		return getValueImpl<double>(unitOpIdx, params, colPos, comp, parType, bnd, val);                                                                                                        \
 	}                                                                                                                                                                                           \
                                                                                                                                                                                                 \
 	virtual active getValue(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd, const active& val) const \
 	{                                                                                                                                                                                           \
-		return getValue<active>(unitOpIdx, params, colPos, comp, parType, bnd, val);                                                                                                            \
+		return getValueImpl<active>(unitOpIdx, params, colPos, comp, parType, bnd, val);                                                                                                        \
 	}                                                                                                                                                                                           \
                                                                                                                                                                                                 \
 	virtual double getValue(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd) const                    \
 	{                                                                                                                                                                                           \
-		return getValue<double>(unitOpIdx, params, colPos, comp, parType, bnd);                                                                                                                 \
+		return getValueImpl<double>(unitOpIdx, params, colPos, comp, parType, bnd);                                                                                                             \
 	}                                                                                                                                                                                           \
                                                                                                                                                                                                 \
 	virtual active getValueActive(UnitOpIdx unitOpIdx, const std::unordered_map<ParameterId, active*>& params, const ColumnPosition& colPos, int comp, int parType, int bnd) const              \
 	{                                                                                                                                                                                           \
-		return getValue<active>(unitOpIdx, params, colPos, comp, parType, bnd);                                                                                                                 \
+		return getValueImpl<active>(unitOpIdx, params, colPos, comp, parType, bnd);                                                                                                             \
 	}
 
 
