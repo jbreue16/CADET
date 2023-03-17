@@ -36,9 +36,12 @@ class IParameterProvider;
 class IConfigHelper;
 struct AdJacobianParams;
 struct SimulationTime;
+class IModel;
 
 namespace model
 {
+
+class IParameterParameterDependence;
 
 namespace parts
 {
@@ -74,12 +77,12 @@ public:
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
-	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
-	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
-	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
-	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
-	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
-	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
@@ -177,12 +180,12 @@ public:
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx);
 
-	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
-	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
-	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
-	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
-	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
-	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, linalg::BandMatrix& jac);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity);
 
 	void multiplyWithDerivativeJacobian(const SimulationTime& simTime, double const* sDot, double* ret) const;
 	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
@@ -212,13 +215,7 @@ public:
 protected:
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualImpl(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
-
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualForwardsFlow(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
-
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualBackwardsFlow(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	void equidistantCells();
 
@@ -242,6 +239,8 @@ protected:
 //	double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
 
 	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
+
+	IParameterParameterDependence* _dispersionDep;
 
 	// Grid info
 	std::vector<active> _cellCenters;
@@ -283,10 +282,10 @@ public:
 	bool configure(UnitOpIdx unitOpIdx, IParameterProvider& paramProvider, std::unordered_map<ParameterId, active*>& parameters);
 	bool notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const AdJacobianParams& adJac);
 
-	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity);
-	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
-	int residual(double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity);
-	int residual(double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, bool wantJac, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, bool wantJac, WithoutParamSensitivity);
+	int residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, bool wantJac, WithParamSensitivity);
 
 	void prepareADvectors(const AdJacobianParams& adJac) const;
 	void extractJacobianFromAD(active const* const adRes, unsigned int adDirOffset);
