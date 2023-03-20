@@ -53,7 +53,9 @@
 class RadialFlowModel : public cadet::test::IDiffEqModel
 {
 public:
-	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol), _stencilMemory(sizeof(cadet::active) * 5)
+	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol),
+		_params(cadet::active(0.0), nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, _dummyModel),
+		_stencilMemory(sizeof(cadet::active) * 5)
 	{
 		const int nPureDof = _nCol * _nComp;
 		_jacDisc.resize(nPureDof, 2 * nComp, 2 * nComp);
@@ -78,7 +80,6 @@ public:
 		_params.offsetToInlet = 0;
 		_params.strideCell = _nComp;
 		_params.parDep = new cadet::model::DummyParameterParameterDependence();
-		_params.model = _dummyModel;
 	}
 
 	virtual ~RadialFlowModel() CADET_NOEXCEPT
@@ -435,6 +436,7 @@ protected:
 	int _nComp;
 	int _nCol;
 
+	DummyModel _dummyModel;
 	cadet::model::parts::convdisp::RadialFlowParameters<double> _params;
 	cadet::linalg::BandMatrix _jac;
 	cadet::linalg::FactorizableBandMatrix _jacDisc;
@@ -444,7 +446,6 @@ protected:
 	std::vector<cadet::active> _cellSizes;
 	std::vector<cadet::active> _cellBounds;
 	cadet::ArrayPool _stencilMemory;
-	DummyModel _dummyModel;
 
 	std::vector<double> _solTimes;
 	std::vector<double> _solution;
