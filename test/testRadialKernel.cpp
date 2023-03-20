@@ -18,6 +18,8 @@
 #include "linalg/BandMatrix.hpp"
 #include "Memory.hpp"
 #include "AutoDiff.hpp"
+#include "model/paramdep/DummyParameterDependence.cpp"
+#include "Dummies.hpp"
 
 #include "io/hdf5/HDF5Writer.hpp"
 
@@ -75,8 +77,15 @@ public:
 		_params.nComp = _nComp;
 		_params.offsetToInlet = 0;
 		_params.strideCell = _nComp;
+		_params.parDep = new cadet::model::DummyParameterParameterDependence();
+		_params.model = _dummyModel;
 	}
-	virtual ~RadialFlowModel() CADET_NOEXCEPT { }
+
+	virtual ~RadialFlowModel() CADET_NOEXCEPT
+	{
+		if (_params.parDep)
+			delete _params.parDep;
+	}
 
 	int numPureDofs() const CADET_NOEXCEPT { return _nComp * _nCol; }
 	virtual int numDofs() const CADET_NOEXCEPT { return _nComp * (_nCol + 1); }
@@ -387,7 +396,6 @@ public:
 		}
 #endif
 
-
 		return _trueSolution;
 	}
 
@@ -436,6 +444,7 @@ protected:
 	std::vector<cadet::active> _cellSizes;
 	std::vector<cadet::active> _cellBounds;
 	cadet::ArrayPool _stencilMemory;
+	DummyModel _dummyModel;
 
 	std::vector<double> _solTimes;
 	std::vector<double> _solution;
