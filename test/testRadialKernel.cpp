@@ -54,7 +54,7 @@ class RadialFlowModel : public cadet::test::IDiffEqModel
 {
 public:
 	RadialFlowModel(int nComp, int nCol) : _nComp(nComp), _nCol(nCol),
-		_params(cadet::active(0.0), nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, _dummyModel),
+		_params{0.0, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, 0, 0, 0, nullptr, _dummyModel},
 		_stencilMemory(sizeof(cadet::active) * 5)
 	{
 		const int nPureDof = _nCol * _nComp;
