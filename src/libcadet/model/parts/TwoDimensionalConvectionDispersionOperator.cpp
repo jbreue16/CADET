@@ -991,7 +991,7 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(double t, unsigned 
 	{
 		active const* const d_c = getSectionDependentSlice(_axialDispersion, _nRad * _nComp, secIdx) + i * _nComp;
 
-		convdisp::FlowParameters<ParamType> fp{
+		convdisp::FlowParameters<ParamType, Weno> fp{
 			static_cast<ParamType>(_curVelocity[i]),
 			d_c,
 			h,
@@ -1006,9 +1006,9 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(double t, unsigned 
 		};
 
 		if (wantJac)
-			convdisp::residualKernel<StateType, ResidualType, ParamType, linalg::BandedSparseRowIterator, true>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
+			convdisp::residualKernel<StateType, ResidualType, ParamType, Weno, linalg::BandedSparseRowIterator, true>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
 		else
-			convdisp::residualKernel<StateType, ResidualType, ParamType, linalg::BandedSparseRowIterator, false>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
+			convdisp::residualKernel<StateType, ResidualType, ParamType, Weno, linalg::BandedSparseRowIterator, false>(SimulationTime{t, secIdx}, y, yDot, res, _jacC.row(i * _nComp), fp);
 	}
 
 	// Handle radial dispersion
