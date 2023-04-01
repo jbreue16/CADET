@@ -46,7 +46,6 @@ struct FlowParameters
 	double* wenoDerivatives; //!< Holds derivatives of the WENO scheme
 	Weno* weno; //!< The WENO scheme implementation
 	ArrayPool* stencilMemory; //!< Provides memory for the stencil
-	double wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
 	int strideCell;
 	unsigned int nComp;
 	unsigned int nCol;
@@ -166,9 +165,9 @@ namespace impl
 
 				// Reconstruct concentration on this cell's right face
 				if (wantJac)
-					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm, p.wenoDerivatives);
+					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.wenoDerivatives);
 				else
-					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm);
+					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
 
 				// Right side
 				resBulkComp[col * p.strideCell] += p.u / p.h * vm;
@@ -309,9 +308,9 @@ namespace impl
 
 				// Reconstruct concentration on this cell's left face
 				if (wantJac)
-					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm, p.wenoDerivatives);
+					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm, p.wenoDerivatives);
 				else
-					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(p.wenoEpsilon, col, p.nCol, stencil, vm);
+					wenoOrder = p.weno->template reconstruct<StateType, StencilType>(col, p.nCol, stencil, vm);
 
 				// Left face
 				resBulkComp[col * p.strideCell] -= p.u / p.h * vm;

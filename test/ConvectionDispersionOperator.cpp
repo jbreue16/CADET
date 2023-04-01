@@ -375,6 +375,7 @@ void testBulkJacobianSparsityWeno(int wenoOrder, bool forwardFlow)
 		std::vector<double> wenoDerivatives(cadet::Weno::maxStencilSize(), 0.0);
 
 		cadet::Weno weno;
+		weno.epsilon(1e-12);
 		weno.order(wenoOrder);
 		weno.boundaryTreatment(cadet::Weno::BoundaryTreatment::ReduceOrder);
 
@@ -385,7 +386,6 @@ void testBulkJacobianSparsityWeno(int wenoOrder, bool forwardFlow)
 			wenoDerivatives.data(),
 			&weno,
 			&stencilMemory,
-			1e-12,
 			strideCell,
 			static_cast<unsigned int>(nComp),
 			static_cast<unsigned int>(nCol),

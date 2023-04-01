@@ -686,7 +686,7 @@ bool TwoDimensionalConvectionDispersionOperator::configureModelDiscretization(IP
 	paramProvider.pushScope("weno");
 	_weno.order(paramProvider.getInt("WENO_ORDER"));
 	_weno.boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
-	_wenoEpsilon = paramProvider.getDouble("WENO_EPS");
+	_weno.epsilon(paramProvider.getDouble("WENO_EPS"));
 	paramProvider.popScope();
 
 	// Read solver settings
@@ -998,7 +998,6 @@ int TwoDimensionalConvectionDispersionOperator::residualImpl(double t, unsigned 
 			_wenoDerivatives,
 			&_weno,
 			&_stencilMemory,
-			_wenoEpsilon,
 			static_cast<int>(_nComp * _nRad),  // Stride between two cells
 			_nComp,
 			_nCol,

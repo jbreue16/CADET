@@ -67,7 +67,7 @@ bool ConvectionDispersionOperatorBase::configureModelDiscretization(IParameterPr
 	paramProvider.pushScope("weno");
 	_weno.order(paramProvider.getInt("WENO_ORDER"));
 	_weno.boundaryTreatment(paramProvider.getInt("BOUNDARY_MODEL"));
-	_wenoEpsilon = paramProvider.getDouble("WENO_EPS");
+	_weno.epsilon(paramProvider.getDouble("WENO_EPS"));
 	paramProvider.popScope();
 
 	paramProvider.popScope();
@@ -289,7 +289,6 @@ int ConvectionDispersionOperatorBase::residualImpl(double t, unsigned int secIdx
 		_wenoDerivatives,
 		&_weno,
 		&_stencilMemory,
-		_wenoEpsilon,
 		strideColCell(),
 		_nComp,
 		_nCol,
