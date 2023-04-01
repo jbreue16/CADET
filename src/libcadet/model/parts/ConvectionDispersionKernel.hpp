@@ -20,13 +20,14 @@
 
 #include "AutoDiff.hpp"
 #include "Memory.hpp"
-#include "Weno.hpp"
 #include "Stencil.hpp"
 #include "linalg/CompressedSparseMatrix.hpp"
 #include "SimulationTypes.hpp"
 
 namespace cadet
 {
+
+class Weno;
 
 namespace model
 {
