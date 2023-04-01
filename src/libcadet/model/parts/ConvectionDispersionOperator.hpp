@@ -126,7 +126,6 @@ protected:
 	ArrayPool _stencilMemory; //!< Provides memory for the stencil
 	double* _wenoDerivatives; //!< Holds derivatives of the WENO scheme
 	Weno _weno; //!< The WENO scheme implementation
-	double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
 
 	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
 
