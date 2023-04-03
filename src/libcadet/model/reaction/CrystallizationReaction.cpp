@@ -932,8 +932,8 @@ namespace cadet
 								F_i = yCrystal[binIdx_i];
 
 								// Jacobian related coefficients, right face
-								dFi_wrt_nim1 = 1.0; // becomes upwind
-								dFi_wrt_ni = 0.0;
+								dFi_wrt_nim1 = 0.0; 
+								dFi_wrt_ni = 1.0; // becomes upwind
 								dFi_wrt_nip1 = 0.0;
 							}
 							vg_right = vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
@@ -1046,8 +1046,8 @@ namespace cadet
 								F_i = yCrystal[binIdx_i];
 
 								// Jacobian related coefficients, right face
-								dFi_wrt_nim1 = 1.0; // becomes upwind
-								dFi_wrt_ni = 0.0;
+								dFi_wrt_nim1 = 0.0; 
+								dFi_wrt_ni = 1.0; // becomes upwind
 								dFi_wrt_nip1 = 0.0;
 							}
 							vg_right = vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));

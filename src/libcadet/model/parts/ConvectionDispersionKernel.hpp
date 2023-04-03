@@ -60,6 +60,7 @@ namespace impl
 	template <typename StateType, typename ResidualType, typename ParamType, typename ReconstrType, typename RowIteratorType, bool wantJac>
 	int residualForwardsFlow(const SimulationTime& simTime, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin, const FlowParameters<ParamType, ReconstrType>& p)
 	{
+		// h is the size of the cell
 		const ParamType h2 = p.h * p.h;
 
 		// The stencil caches parts of the state vector for better spatial coherence
@@ -146,7 +147,7 @@ namespace impl
 				if (cadet_likely(col > 0))
 				{
 					// Remember that vm still contains the reconstructed value of the previous 
-					// cell's *right* face, which is identical to this cell's *left* face!
+					// cell's *right* face, which is identical to this cell's *left* face! u is the velocity.
 					resBulkComp[col * p.strideCell] -= p.u / p.h * vm;
 
 					// Jacobian entries
