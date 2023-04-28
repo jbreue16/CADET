@@ -775,7 +775,7 @@ template <typename ConvDispOperator>
 unsigned int LumpedRateModelWithoutPores<ConvDispOperator>::localOutletComponentIndex(unsigned int port) const CADET_NOEXCEPT
 {
 	// Inlets are duplicated so need to be accounted for
-	if (static_cast<double>(_convDispOp.currentVelocity()) >= 0.0)
+	if (_convDispOp.forwardFlow())
 		// Forward Flow: outlet is last cell
 		return _disc.nComp + (_disc.nCol - 1) * (_disc.nComp + _disc.strideBound);
 	else

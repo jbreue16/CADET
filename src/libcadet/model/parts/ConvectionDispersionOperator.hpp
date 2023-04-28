@@ -88,7 +88,7 @@ public:
 	void addTimeDerivativeToJacobian(double alpha, linalg::FactorizableBandMatrix& jacDisc);
 
 	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
-	inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
+	inline const active& currentVelocity(double pos) const CADET_NOEXCEPT { return _curVelocity; }
 	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_colLength) / _nCol * (idx + 0.5); }
@@ -110,13 +110,7 @@ public:
 protected:
 
 	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualImpl(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
-
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualForwardsFlow(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
-
-	template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-	int residualBackwardsFlow(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
+	int residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin);
 
 	unsigned int _nComp; //!< Number of components
 	unsigned int _nCol; //!< Number of axial cells
@@ -137,6 +131,8 @@ protected:
 	double _wenoEpsilon; //!< The @f$ \varepsilon @f$ of the WENO scheme (prevents division by zero)
 
 	bool _dispersionCompIndep; //!< Determines whether dispersion is component independent
+
+	IParameterParameterDependence* _dispersionDep;
 
 	// Indexer functionality
 
@@ -193,7 +189,7 @@ public:
 	inline const active& columnLength() const CADET_NOEXCEPT { return _colLength; }
 	inline const active& innerRadius() const CADET_NOEXCEPT { return _innerRadius; }
 	inline const active& outerRadius() const CADET_NOEXCEPT { return _outerRadius; }
-	inline const active& currentVelocity() const CADET_NOEXCEPT { return _curVelocity; }
+	active currentVelocity(double pos) const CADET_NOEXCEPT;
 	inline bool forwardFlow() const CADET_NOEXCEPT { return _curVelocity >= 0.0; }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return static_cast<double>(_cellCenters[idx]); }
@@ -301,8 +297,8 @@ public:
 #endif
 
 	inline const active& columnLength() const CADET_NOEXCEPT { return _baseOp.columnLength(); }
-	inline const active& currentVelocity() const CADET_NOEXCEPT { return _baseOp.currentVelocity(); }
-	inline bool forwardFlow() const CADET_NOEXCEPT { return _baseOp.currentVelocity() >= 0.0; }
+	inline active currentVelocity(double pos) const CADET_NOEXCEPT { return _baseOp.currentVelocity(pos); }
+	inline bool forwardFlow() const CADET_NOEXCEPT { return _baseOp.forwardFlow(); }
 	inline double inletJacobianFactor() const CADET_NOEXCEPT { return _baseOp.inletJacobianFactor(); }
 
 	inline double cellCenter(unsigned int idx) const CADET_NOEXCEPT { return _baseOp.cellCenter(idx); }

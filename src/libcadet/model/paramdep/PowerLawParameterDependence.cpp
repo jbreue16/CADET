@@ -51,7 +51,12 @@ protected:
 		const std::string baseName = name + "_BASE";
 		const std::string expName = name + "_EXPONENT";
 		const std::string flagName = name + "_ABS";
-		_base = paramProvider.getDouble(baseName);
+
+		if (paramProvider.exists(baseName))
+			_base = paramProvider.getDouble(baseName);
+		else
+			_base = 1.0;
+
 		_exponent = paramProvider.getDouble(expName);
 
 		if (paramProvider.exists(flagName))

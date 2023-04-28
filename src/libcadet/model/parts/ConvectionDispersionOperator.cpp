@@ -42,12 +42,15 @@ namespace parts
  * @brief Creates an AxialConvectionDispersionOperatorBase
  */
 AxialConvectionDispersionOperatorBase::AxialConvectionDispersionOperatorBase() : _stencilMemory(sizeof(active) * Weno::maxStencilSize()), 
-	_wenoDerivatives(new double[Weno::maxStencilSize()]), _weno()
+	_wenoDerivatives(new double[Weno::maxStencilSize()]), _weno(), _dispersionDep(nullptr)
 {
 }
 
 AxialConvectionDispersionOperatorBase::~AxialConvectionDispersionOperatorBase() CADET_NOEXCEPT
 {
+	if (_dispersionDep)
+		delete _dispersionDep;
+
 	delete[] _wenoDerivatives;
 }
 
@@ -64,6 +67,18 @@ bool AxialConvectionDispersionOperatorBase::configureModelDiscretization(IParame
 	_nComp = nComp;
 	_nCol = nCol;
 	_strideCell = strideCell;
+
+	if (paramProvider.exists("COL_DISPERSION_DEP"))
+	{
+		const std::string paramDepName = paramProvider.getString("COL_DISPERSION_DEP");
+		_dispersionDep = helper.createParameterParameterDependence(paramDepName);
+		if (!_dispersionDep)
+			throw InvalidParameterException("Unknown parameter dependence " + paramDepName + " in COL_DISPERSION_DEP");
+
+		_dispersionDep->configureModelDiscretization(paramProvider);
+	}
+	else
+		_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
 
 	paramProvider.pushScope("discretization");
 
@@ -148,6 +163,12 @@ bool AxialConvectionDispersionOperatorBase::configure(UnitOpIdx unitOpIdx, IPara
 			std::fill(expanded.begin() + i * _nComp, expanded.begin() + (i + 1) * _nComp, _colDispersion[i]);
 
 		_colDispersion = std::move(expanded);
+	}
+
+	if (_dispersionDep)
+	{
+		if (!_dispersionDep->configure(paramProvider, unitOpIdx, ParTypeIndep, BoundStateIndep, "COL_DISPERSION_DEP"))
+			throw InvalidParameterException("Failed to configure dispersion parameter dependency (COL_DISPERSION_DEP)");
 	}
 
 	if (_velocity.empty() && (_crossSection <= 0.0))
@@ -248,17 +269,17 @@ int AxialConvectionDispersionOperatorBase::residual(const IModel& model, double 
 	// Reset Jacobian
 	jac.setAll(0.0);
 
-	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true>(t, secIdx, y, yDot, res, jac.row(0));
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, true>(model, t, secIdx, y, yDot, res, jac.row(0));
 }
 
 int AxialConvectionDispersionOperatorBase::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, double* res, WithoutParamSensitivity)
 {
-	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, false>(t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+	return residualImpl<double, double, double, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
 int AxialConvectionDispersionOperatorBase::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithoutParamSensitivity)
 {
-	return residualImpl<active, active, double, linalg::BandMatrix::RowIterator, false>(t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+	return residualImpl<active, active, double, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
 int AxialConvectionDispersionOperatorBase::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, linalg::BandMatrix& jac)
@@ -266,21 +287,21 @@ int AxialConvectionDispersionOperatorBase::residual(const IModel& model, double 
 	// Reset Jacobian
 	jac.setAll(0.0);
 
-	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, true>(t, secIdx, y, yDot, res, jac.row(0));
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, true>(model, t, secIdx, y, yDot, res, jac.row(0));
 }
 
 int AxialConvectionDispersionOperatorBase::residual(const IModel& model, double t, unsigned int secIdx, double const* y, double const* yDot, active* res, WithParamSensitivity)
 {
-	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, false>(t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+	return residualImpl<double, active, active, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
 int AxialConvectionDispersionOperatorBase::residual(const IModel& model, double t, unsigned int secIdx, active const* y, double const* yDot, active* res, WithParamSensitivity)
 {
-	return residualImpl<active, active, active, linalg::BandMatrix::RowIterator, false>(t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
+	return residualImpl<active, active, active, linalg::BandMatrix::RowIterator, false>(model, t, secIdx, y, yDot, res, linalg::BandMatrix::RowIterator());
 }
 
 template <typename StateType, typename ResidualType, typename ParamType, typename RowIteratorType, bool wantJac>
-int AxialConvectionDispersionOperatorBase::residualImpl(double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
+int AxialConvectionDispersionOperatorBase::residualImpl(const IModel& model, double t, unsigned int secIdx, StateType const* y, double const* yDot, ResidualType* res, RowIteratorType jacBegin)
 {
 	const ParamType u = static_cast<ParamType>(_curVelocity);
 	active const* const d_c = getSectionDependentSlice(_colDispersion, _nComp, secIdx);
@@ -299,7 +320,9 @@ int AxialConvectionDispersionOperatorBase::residualImpl(double t, unsigned int s
 		_nComp,
 		_nCol,
 		0u,
-		_nComp
+		_nComp,
+		_dispersionDep,
+		model
 	};
 
 	return convdisp::residualKernelAxial<StateType, ResidualType, ParamType, RowIteratorType, wantJac>(SimulationTime{t, secIdx}, y, yDot, res, jacBegin, fp);
@@ -383,6 +406,16 @@ double AxialConvectionDispersionOperatorBase::inletJacobianFactor() const CADET_
 
 bool AxialConvectionDispersionOperatorBase::setParameter(const ParameterId& pId, double value)
 {
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		if (_dispersionDep->hasParameter(pId))
+		{
+			_dispersionDep->setParameter(pId, value);
+			return true;
+		}
+	}
+
 	// We only need to do something if COL_DISPERSION is component independent
 	if (!_dispersionCompIndep)
 		return false;
@@ -414,6 +447,17 @@ bool AxialConvectionDispersionOperatorBase::setParameter(const ParameterId& pId,
 
 bool AxialConvectionDispersionOperatorBase::setSensitiveParameterValue(const std::unordered_set<active*>& sensParams, const ParameterId& pId, double value)
 {
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		active* const param = _dispersionDep->getParameter(pId);
+		if (param)
+		{
+			param->setValue(value);
+			return true;
+		}
+	}
+
 	// We only need to do something if COL_DISPERSION is component independent
 	if (!_dispersionCompIndep)
 		return false;
@@ -451,6 +495,17 @@ bool AxialConvectionDispersionOperatorBase::setSensitiveParameterValue(const std
 
 bool AxialConvectionDispersionOperatorBase::setSensitiveParameter(std::unordered_set<active*>& sensParams, const ParameterId& pId, unsigned int adDirection, double adValue)
 {
+	// Check if parameter is in parameter dependence of column dispersion coefficient
+	if (_dispersionDep)
+	{
+		active* const param = _dispersionDep->getParameter(pId);
+		if (param)
+		{
+			param->setADValue(adDirection, adValue);
+			return true;
+		}
+	}
+
 	// We only need to do something if COL_DISPERSION is component independent
 	if (!_dispersionCompIndep)
 		return false;
@@ -522,7 +577,7 @@ bool RadialConvectionDispersionOperatorBase::configureModelDiscretization(IParam
 		_dispersionDep->configureModelDiscretization(paramProvider);
 	}
 	else
-		_dispersionDep = helper.createParameterParameterDependence("DUMMY");
+		_dispersionDep = helper.createParameterParameterDependence("CONSTANT_ONE");
 
 	paramProvider.pushScope("discretization");
 
@@ -703,6 +758,12 @@ void RadialConvectionDispersionOperatorBase::setFlowRates(const active& in, cons
 	// If we have cross section area, interstitial velocity is given by network flow rates
 	if (_colLength > 0.0)
 		_curVelocity = _dir * in / (2.0 * pi * _colLength * colPorosity);
+}
+
+active RadialConvectionDispersionOperatorBase::currentVelocity(double pos) const CADET_NOEXCEPT
+{
+	const active radius = pos * (_outerRadius - _innerRadius) + _innerRadius;
+	return _curVelocity / radius;
 }
 
 /**
@@ -1139,8 +1200,7 @@ bool ConvectionDispersionOperator<Operator>::notifyDiscontinuousSectionTransitio
 
 	const unsigned int lb = _baseOp.jacobianLowerBandwidth();
 	const unsigned int ub = _baseOp.jacobianUpperBandwidth();
-	const double u = static_cast<double>(_baseOp.currentVelocity());
-	if (u >= 0.0)
+	if (_baseOp.forwardFlow())
 	{
 		// Forwards flow
 
