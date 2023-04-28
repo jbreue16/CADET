@@ -28,6 +28,7 @@ namespace cadet
 {
 
 class Weno;
+class HighResolutionKoren;
 
 namespace model
 {
@@ -356,6 +357,7 @@ int residualKernel(const SimulationTime& simTime, StateType const* y, double con
 }
 
 void sparsityPattern(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, Weno& weno);
+void sparsityPattern(linalg::SparsityPatternRowIterator itBegin, unsigned int nComp, unsigned int nCol, int strideCell, double u, HighResolutionKoren& koren);
 
 } // namespace convdisp
 } // namespace parts
