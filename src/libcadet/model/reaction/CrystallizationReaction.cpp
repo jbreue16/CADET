@@ -220,6 +220,9 @@ namespace cadet
 				_primaryNucleationRate = paramProvider.getDouble("CRY_PRIMARY_NUCLEATION_RATE");
 				_parameters[makeParamId(hashString("CRY_PRIMARY_NUCLEATION_RATE"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_primaryNucleationRate;
 
+				_secondaryNucleationRate = paramProvider.getDouble("CRY_SECONDARY_NUCLEATION_RATE");
+				_parameters[makeParamId(hashString("CRY_SECONDARY_NUCLEATION_RATE"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_secondaryNucleationRate;
+
 				_growthRateConstant = paramProvider.getDouble("CRY_GROWTH_RATE_CONSTANT");
 				_parameters[makeParamId(hashString("CRY_GROWTH_RATE_CONSTANT"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_growthRateConstant;
 
@@ -234,21 +237,20 @@ namespace cadet
 				_a = paramProvider.getDouble("CRY_A");
 				_parameters[makeParamId(hashString("CRY_A"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_a;
 
+				_b = paramProvider.getDouble("CRY_B");
+				_parameters[makeParamId(hashString("CRY_B"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_b;
+
 				_g = paramProvider.getDouble("CRY_G");
 				_parameters[makeParamId(hashString("CRY_G"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_g;
 
 				_p = paramProvider.getDouble("CRY_P");
 				_parameters[makeParamId(hashString("CRY_P"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_p;
 
+				_k = paramProvider.getDouble("CRY_K");
+				_parameters[makeParamId(hashString("CRY_K"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_k;
+
 				_u = paramProvider.getDouble("CRY_U");
 				_parameters[makeParamId(hashString("CRY_U"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, ReactionIndep, SectionIndep)] = &_u;
-
-				readScalarParameterOrArray(_nPDF, paramProvider, "CRY_NUCLEI_PROBABILITY_DENSITY_FUNCTION", 1);
-
-				if (_nPDF.size() != _nBins)
-					throw InvalidParameterException("Expected CRY_NUCLEI_PROBABILITY_DENSITY_FUNCTION to have " + std::to_string(_nBins) + " elements (got " + std::to_string(_bins.size()) + ")");
-
-				registerParam1DArray(_parameters, _nPDF, [=](bool multi, unsigned int idx) { return makeParamId(hashString("CRY_NUCLEI_PROBABILITY_DENSITY_FUNCTION"), unitOpIdx, CompIndep, ParTypeIndep, BoundStateIndep, idx, SectionIndep); });
 
 				clearSchemeCoefficients();
 
@@ -342,18 +344,19 @@ namespace cadet
 			std::vector<active> _binCenters;
 			std::vector<active> _binSizes;
 			std::vector<active> _binCenterDists;
-			std::vector<active> _nPDF; // users need to make sure the area of the PDF is 1;
-			
 			active _nucleiMassDensity; //!< rho
 			active _volShapeFactor; //!< k_v
 			active _primaryNucleationRate; //!< k_p
+			active _secondaryNucleationRate; //!< k_b
 			active _growthRateConstant; //!< k_g
 			active _growthConstant; //!< gamma
 			active _growthDispersionRate; //!< D_g
-			active _growthSchemeOrder; // can be 1, 2, 3 and 4
+			int _growthSchemeOrder; // can be 1, 2, 3 and 4
 			active _a; //!< System constant
+			active _b; //!< System constant
 			active _g; //!< System constant
 			active _p; //!< System constant
+			active _k; //!< System constant
 			active _u; //!< System constant
 
 			detail::HRCoefficients* _HR;
@@ -415,29 +418,27 @@ namespace cadet
 				// second order accurate approximation of value at midpoint / center of mass of volume
 
 				const StateParam k_g_times_s_g = static_cast<ParamType>(_growthRateConstant) * pow(s, static_cast<ParamType>(_g));
-				const ParamType x_c_3 = static_cast<ParamType>(_bins[0]) * static_cast<ParamType>(_bins[0]) * static_cast<ParamType>(_bins[0]);
 
 				StateParam M = 0.0;
-				StateParam substrateConversion_growth = 0.0;
-				StateParam substrateConversion_nucleation = 0.0;
-
+				StateParam substrateConversion = 0.0;
 				for (int i = 0; i < _nBins; ++i)
 				{
-					substrateConversion_growth += yCrystal[i] * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_binCenters[i]), static_cast<ParamType>(_p))) * static_cast<ParamType>(_binSizes[i]);
-					substrateConversion_nucleation += static_cast<ParamType>(_nPDF[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binSizes[i]);
+					M += yCrystal[i] * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binSizes[i]);
+					substrateConversion += yCrystal[i] * static_cast<ParamType>(_binCenters[i]) * static_cast<ParamType>(_binCenters[i]) * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_binCenters[i]), static_cast<ParamType>(_p))) * static_cast<ParamType>(_binSizes[i]);
 				}
-				substrateConversion_growth *= 3.0 * k_g_times_s_g;
+				M *= massDensityShapeFactor;
+				substrateConversion *= 3.0 * k_g_times_s_g;
 
-				// B_0 = primary nucleation rate, secondary nucleation is not considered! if u=0, s^u=1, the solute is consumed without limit: need to rewrite B0 to 0 if s = 0.
-				const StateParam B_0 = (cadet_likely(s > 0)) ? static_cast<ParamType>(_primaryNucleationRate) * pow(s, static_cast<ParamType>(_u)) : 0.0;
-				substrateConversion_nucleation *= B_0;
+				// B_0 = primary + secondary nucleation rate
+				const StateParam B_0 = static_cast<ParamType>(_primaryNucleationRate) * pow(s, static_cast<ParamType>(_u)) + static_cast<ParamType>(_secondaryNucleationRate) * pow(s, static_cast<ParamType>(_b)) * pow(M, static_cast<ParamType>(_k));
+				const ParamType x_c_3 = static_cast<ParamType>(_bins[0]) * static_cast<ParamType>(_bins[0]) * static_cast<ParamType>(_bins[0]);
 
 				// adjust c_feed for each time step
-				res[0] -= factor * massDensityShapeFactor * (substrateConversion_nucleation + substrateConversion_growth);
+				res[0] -= factor * massDensityShapeFactor * (B_0 * x_c_3 + substrateConversion);
 
 				StateParam v_g = 0.0;
 
-				const int growth_order = static_cast<double>(_growthSchemeOrder);
+				const int growth_order = static_cast<int>(_growthSchemeOrder);
 				switch (growth_order)
 				{
 					// upwind scheme
@@ -449,7 +450,7 @@ namespace cadet
 						if (cadet_likely((i > 0) && (i + 1 < _nBins)))
 						{
 							// flux through the left face
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i - 1]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i - 1]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// flux through the right face
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * (v_g * yCrystal[i]) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
@@ -457,7 +458,7 @@ namespace cadet
 						else if (i == 0)
 						{
 							// Left boundary condition
-							resCrystal[i] += factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
 							// upwind
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
@@ -465,7 +466,7 @@ namespace cadet
 						else
 						{
 							// first order approximation
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// no flux
 						}
 					}
@@ -481,36 +482,50 @@ namespace cadet
 					{
 						if (cadet_likely((i > 1) && (i + 1 < _nBins)))
 						{
-							// Flux through left face, modified van Leer flux limiter, diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// Flux through left face, modified van Leer flux limiter
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// Flux through left face, modified van Leer flux limiter, update r_x_i, R_i, and growth rate
 							r_x_i = static_cast<ParamType>(_HR->A_coeff[i]) * (yCrystal[i] - yCrystal[i - 1] + 1e-10) / (yCrystal[i + 1] - yCrystal[i] + 1e-10);
-							phi = cadet_likely(r_x_i > 0) ? r_x_i / (static_cast<ParamType>(_HR->R_coeff[i]) - 1.0 + r_x_i) : 0.0;
+							if (cadet_likely(r_x_i > 0))
+							{
+								phi = r_x_i / (static_cast<ParamType>(_HR->R_coeff[i]) - 1.0 + r_x_i);
+							}
+							else
+							{
+								phi = 0.0;
+							}
 							F_i = yCrystal[i] + phi * (yCrystal[i + 1] - yCrystal[i]);
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
 						else if (i == 1)
 						{
-							// upwind to F_{1/2}, diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// upwind to F_{1/2} and the diffusion
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// HR scheme applied to F_{1+1/2}
 							r_x_i = static_cast<ParamType>(_HR->A_coeff[i]) * (yCrystal[i] - yCrystal[i - 1] + 1e-10) / (yCrystal[i + 1] - yCrystal[i] + 1e-10);
-							phi = cadet_likely(r_x_i > 0) ? r_x_i / (static_cast<ParamType>(_HR->R_coeff[i]) - 1.0 + r_x_i) : 0.0;
+							if (cadet_likely(r_x_i > 0))
+							{
+								phi = r_x_i / (static_cast<ParamType>(_HR->R_coeff[i]) - 1.0 + r_x_i);
+							}
+							else
+							{
+								phi = 0.0;
+							}
 							F_i = yCrystal[i] + phi * (yCrystal[i + 1] - yCrystal[i]);
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
 						else if (i + 1 == _nBins)
 						{
-							// HR scheme applied to the influx of the last bin, diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// HR scheme applied to the influx of the last bin 
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * F_i - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// no flux
 						}
 						else
 						{
 							// left boundary condition
-							resCrystal[i] += factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
 							// upwind to F_1
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
@@ -533,8 +548,8 @@ namespace cadet
 					{
 						if (cadet_likely((i > 1) && (i + 1 < _nBins)))
 						{
-							// flux through left face. W_0, q_0, W_1 and q_1 are coming from the right face of bin (i-1). diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// flux through left face. W_0, q_0, W_1 and q_1 are coming from the right face of bin (i-1).
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// flux through right face, update IS, alpha, W, q and growth rate
 							IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
 							IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
@@ -550,14 +565,14 @@ namespace cadet
 						// boundary condition
 						else if (i + 1 == _nBins)
 						{
-							// weno3 applied to the influx of the last bin.  diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// weno3 applied to the influx of the last bin
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// no flux, regularity boundary condition
 						}
 						else if (i == 1)
 						{
-							// upwind applied to F_{1/2}.  diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// upwind applied to F_{1/2}
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// weno3 applied to F_{1+1/2}
 							IS_0 = static_cast<ParamType>(_weno3->IS_0_coeff[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
 							IS_1 = static_cast<ParamType>(_weno3->IS_1_coeff[i]) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
@@ -572,8 +587,8 @@ namespace cadet
 						}
 						else
 						{
-							// nucleation boundary condition. diffusion and nucleation source
-							resCrystal[i] += factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// nucleation boundary condition
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
 							// upwind
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
@@ -600,8 +615,8 @@ namespace cadet
 					{
 						if (cadet_likely((i > 2) && (i + 2 < _nBins)))
 						{
-							// flux through the left face. diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// flux through the left face 
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// flux through the right face
 							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
 							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
@@ -620,8 +635,8 @@ namespace cadet
 						}
 						else if (i == 2)
 						{
-							// weno3 applied to F_{2-1/2}. diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// weno3 applied to F_{2-1/2}
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// weno5 applied to F_{2+1/2}
 							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_1[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i + 2] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_2[i]) * (yCrystal[i + 2] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]) + static_cast<ParamType>(_weno5->IS_0_coeff_3[i]) * (yCrystal[i] - yCrystal[i + 1]) * (yCrystal[i] - yCrystal[i + 1]);
 							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_1[i]) * (yCrystal[i - 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_2[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i - 1] - yCrystal[i]) + static_cast<ParamType>(_weno5->IS_1_coeff_3[i]) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
@@ -640,8 +655,8 @@ namespace cadet
 						}
 						else if (i == 1)
 						{
-							// upwind applied to F_{1-1/2}. diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// upwind applied to F_{1-1/2}
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i - 1] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// weno3 applied to F_{1+1/2}
 							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
 							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
@@ -656,16 +671,16 @@ namespace cadet
 						}
 						else if (i == 0)
 						{
-							// boundary condition. diffusion and nucleation source
-							resCrystal[i] += factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// boundary condition
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * B_0;
 							// upwind to F_{1/2}
 							v_g = k_g_times_s_g * (static_cast<ParamType>(_a) + static_cast<ParamType>(_growthConstant) * pow(static_cast<ParamType>(_bins[i + 1]), static_cast<ParamType>(_p)));
 							resCrystal[i] -= factor / static_cast<ParamType>(_binSizes[i]) * v_g * yCrystal[i] - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i + 1] - yCrystal[i]) / static_cast<ParamType>(_binCenterDists[i]);
 						}
 						else if (i + 2 == _nBins)
 						{
-							// weno5 applied to F_{nx-2-1/2}. diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// weno5 applied to F_{nx-2-1/2}
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// weno3 applied to F_{nx-2+1/2}
 							IS_0 = static_cast<ParamType>(_weno5->IS_0_coeff_weno3_r) * (yCrystal[i + 1] - yCrystal[i]) * (yCrystal[i + 1] - yCrystal[i]);
 							IS_1 = static_cast<ParamType>(_weno5->IS_1_coeff_weno3_r) * (yCrystal[i] - yCrystal[i - 1]) * (yCrystal[i] - yCrystal[i - 1]);
@@ -680,8 +695,8 @@ namespace cadet
 						}
 						else
 						{
-							// weno3 to F_{nx-1-1/2}. diffusion and nucleation source
-							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]) + factor * static_cast<ParamType>(_nPDF[i]) * B_0;
+							// weno3 to F_{nx-1-1/2}
+							resCrystal[i] += factor / static_cast<ParamType>(_binSizes[i]) * v_g * (W_0 * q_0 + W_1 * q_1) - factor * static_cast<ParamType>(_growthDispersionRate) / static_cast<ParamType>(_binSizes[i]) * (yCrystal[i] - yCrystal[i - 1]) / static_cast<ParamType>(_binCenterDists[i - 1]);
 							// no flux BC
 						}
 					}
@@ -710,11 +725,11 @@ namespace cadet
 				double const s = (cadet_likely(y[0] / y[_nComp - 1] - 1.0 > 0)) ? y[0] / y[_nComp - 1] - 1.0 : 0.0;
 
 				// compute the summations 
-				double substrateConversion_nucleation = 0.0;
+				double M = 0.0;
 				double substrateConversion = 0.0;
 				for (int i = 0; i < _nBins; ++i)
 				{
-					substrateConversion_nucleation += static_cast<double>(_nPDF[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binSizes[i]);
+					M += yCrystal[i] * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * static_cast<double>(_binSizes[i]);
 					substrateConversion += yCrystal[i] * static_cast<double>(_binCenters[i]) * static_cast<double>(_binCenters[i]) * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_binCenters[i]), static_cast<double>(_p))) * static_cast<double>(_binSizes[i]);
 				}
 
@@ -724,10 +739,13 @@ namespace cadet
 				double const rho_kv = static_cast<double>(_nucleiMassDensity) * static_cast<double>(_volShapeFactor);
 				double const x_c_3 = static_cast<double>(_bins[0]) * static_cast<double>(_bins[0]) * static_cast<double>(_bins[0]);
 
-				double const dBp_dc = (cadet_likely(s > 0)) ? static_cast<double>(_primaryNucleationRate) * static_cast<double>(_u) * pow(s, static_cast<double>(_u) - 1) / y[_nComp - 1] : 0.0;
-				double const dBp_dceq = (cadet_likely(s > 0)) ? -static_cast<double>(_primaryNucleationRate) * static_cast<double>(_u) * pow(s, static_cast<double>(_u) - 1) * y[0] / y[_nComp - 1] / y[_nComp - 1] : 0.0;
+				double const dBp_dc = static_cast<double>(_primaryNucleationRate) * static_cast<double>(_u) * pow(s, static_cast<double>(_u) - 1) / y[_nComp - 1];
+				double const dBp_dceq = -static_cast<double>(_primaryNucleationRate) * static_cast<double>(_u) * pow(s, static_cast<double>(_u) - 1) * y[0] / y[_nComp - 1] / y[_nComp - 1];
+				double const dBs_dc = rho_kv * static_cast<double>(_secondaryNucleationRate) * static_cast<double>(_b) * pow(s, static_cast<double>(_b) - 1) * M / y[_nComp - 1];
+				double const dBs_dceq = -rho_kv * static_cast<double>(_secondaryNucleationRate) * static_cast<double>(_b) * pow(s, static_cast<double>(_b) - 1) * M * y[0] / y[_nComp - 1] / y[_nComp - 1];
 				double const dvG_dc_factor = static_cast<double>(_growthRateConstant) * static_cast<double>(_g) * pow(s, static_cast<double>(_g) - 1) / y[_nComp - 1];
 				double const dvG_dceq_factor = -static_cast<double>(_growthRateConstant) * static_cast<double>(_g) * pow(s, static_cast<double>(_g) - 1) * y[0] / y[_nComp - 1] / y[_nComp - 1];
+				double const dBs_dni_factor = rho_kv * static_cast<double>(_secondaryNucleationRate) * pow(s, static_cast<double>(_b));
 
 				// the jacobian has a shape: (_nComp) x (_nComp), undefined ones are 0.0.
 				// the first loop i iterates over rows, the second loop j iterates over columns. The offset i is used to move the jac index to 0 at the beginning of iterating over j.
@@ -747,7 +765,6 @@ namespace cadet
 							binIdx_i = i - 1;
 							// dQ_i/dc
 							jac[0 - i] -= factor * (dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) * yCrystal[binIdx_i] - dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) * yCrystal[binIdx_i - 1]) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[0 - i] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]);
 
 							// dQ_i/dn_{i-1}
 							jac[-1] += factor * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i - 1]) / static_cast<double>(_binSizes[binIdx_i]);
@@ -760,7 +777,6 @@ namespace cadet
 
 							//dQ_i/dc_{eq}
 							jac[_nComp - 1 - i] -= factor * (dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) * yCrystal[binIdx_i] - dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) * yCrystal[binIdx_i - 1]) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[_nComp - 1 - i] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]);
 						}
 						else if (cadet_unlikely(i == 0))
 						{
@@ -771,37 +787,53 @@ namespace cadet
 								if (cadet_likely((j > 0) && (j + 1 < _nComp)))
 								{
 									// dQ_c/dn_i
-									jac[j - i] -= factor * rho_kv * 3.0 * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_binCenters[binIdx_j]), static_cast<double>(_p))) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]);
+									jac[j - i] -= factor * rho_kv * (x_c_3 * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) + 3.0 * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_binCenters[binIdx_j]), static_cast<double>(_p))) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]));
 								}
 								else if (cadet_unlikely(j == 0))
 								{
 									// dQ_c/dc
-									jac[j - i] -= factor * rho_kv * (dBp_dc * substrateConversion_nucleation + 3.0 * dvG_dc_factor * substrateConversion);
+									jac[j - i] -= factor * rho_kv * ((dBp_dc + dBs_dc) * x_c_3 + 3.0 * dvG_dc_factor * substrateConversion);
 								}
 								else
 								{
 									// dQ_c/dc_eq
-									jac[j - i] -= factor * rho_kv * (dBp_dceq * substrateConversion_nucleation + 3.0 * dvG_dceq_factor * substrateConversion);
+									jac[j - i] -= factor * rho_kv * ((dBp_dceq + dBs_dceq) * x_c_3 + 3.0 * dvG_dceq_factor * substrateConversion);
 								}
 							}
 						}
 						else if (cadet_unlikely(i == 1))
 						{
-							// Q_0, left BC
 							binIdx_i = i - 1;
-							// dQ_0/dc
-							jac[0 - 1] -= factor * yCrystal[0] * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[0 - 1] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]);
-
-							// dQ_0/dn0
-							jac[1 - 1] -= factor * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_j + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
-
-							// dQ_0/dn1
-							jac[2 - 1] += factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
-
-							// dQ_0/dceq
-							jac[_nComp - 1 - 1] -= factor * yCrystal[0] * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[_nComp - 1 - 1] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]);
+							// Q_0, left BC
+							for (int j = 0; j < _nComp; ++j)
+							{
+								binIdx_j = j - 1;
+								if (cadet_likely((j > 2) && (j + 1 < _nComp)))
+								{
+									// dQ_0/dni
+									jac[j - i] += factor * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 0))
+								{
+									// dQ_0/dc
+									jac[j - i] -= factor * (yCrystal[0] * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) - dBp_dc - dBs_dc) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 1))
+								{
+									// dQ_0/dn0
+									jac[j - i] -= factor * (vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_j + 1]), static_cast<double>(_p))) - dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j])) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 2))
+								{
+									// dQ_0/dn1
+									jac[j - i] += factor * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else
+								{
+									// dQ_0/dceq
+									jac[j - i] -= factor * (yCrystal[0] * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) - dBp_dceq - dBs_dceq) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+							}
 						}
 						else if (cadet_unlikely(i == _nComp - 2))
 						{
@@ -810,7 +842,6 @@ namespace cadet
 
 							// dQ_{N_x-1}/dc
 							jac[0 - i] += factor * yCrystal[binIdx_i - 1] * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[0 - i] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]);
 
 							// dQ_{N_x-1}/dn_{N_x-2}
 							jac[_nComp - 3 - i] += factor * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i - 1]) / static_cast<double>(_binSizes[binIdx_i]);
@@ -820,7 +851,6 @@ namespace cadet
 
 							// dQ_{N_x-1}/dc_eq
 							jac[_nComp - 1 - i] += factor * yCrystal[binIdx_i - 1] * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[_nComp - 1 - i] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]);
 						}
 						else
 						{
@@ -861,10 +891,9 @@ namespace cadet
 						if (cadet_likely((i > 2) && (i + 2 < _nComp)))
 						{
 							binIdx_i = i - 1;
-							// jacobian, left face, which is the right face of a previous cell. nucleation source
+							// jacobian, left face, which is the right face of a previous cell
 							// dQ_i/dc, j=0
 							jac[-i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * F_i;
-							jac[-i] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]);
 
 							// dQ_i/dn_{i-2}, j=i-2
 							jac[-2] += factor / static_cast<double>(_binSizes[binIdx_i]) * vg_right * dFi_wrt_nim1; // the second term in the product rule is zero
@@ -877,7 +906,6 @@ namespace cadet
 
 							//dQ_i/dc_{eq}, j=_nComp - 1
 							jac[_nComp - 1 - i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * F_i;
-							jac[_nComp - 1 - i] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]);
 
 							// update all coefficients
 							// HR-related coefficients, right face
@@ -939,17 +967,17 @@ namespace cadet
 								if (cadet_likely((j > 0) && (j + 1 < _nComp)))
 								{
 									// dQ_c/dn_i
-									jac[j - i] -= factor * rho_kv * 3.0 * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_binCenters[binIdx_j]), static_cast<double>(_p))) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]);
+									jac[j - i] -= factor * rho_kv * (x_c_3 * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) + 3.0 * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_binCenters[binIdx_j]), static_cast<double>(_p))) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]));
 								}
 								else if (cadet_unlikely(j == 0))
 								{
 									// dQ_c/dc
-									jac[j - i] -= factor * rho_kv * (dBp_dc * substrateConversion_nucleation + 3.0 * dvG_dc_factor * substrateConversion);
+									jac[j - i] -= factor * rho_kv * ((dBp_dc + dBs_dc) * x_c_3 + 3.0 * dvG_dc_factor * substrateConversion);
 								}
 								else
 								{
 									// dQ_c/dc_eq
-									jac[j - i] -= factor * rho_kv * (dBp_dceq * substrateConversion_nucleation + 3.0 * dvG_dceq_factor * substrateConversion);
+									jac[j - i] -= factor * rho_kv * ((dBp_dceq + dBs_dceq) * x_c_3 + 3.0 * dvG_dceq_factor * substrateConversion);
 								}
 							}
 						}
@@ -958,19 +986,36 @@ namespace cadet
 						else if (cadet_unlikely(i == 1))
 						{
 							binIdx_i = i - 1;
-							// dQ_0/dc
-							jac[0 - 1] -= factor * yCrystal[0] * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[0 - 1] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]);
-
-							// dQ_0/dn0
-							jac[1 - 1] -= factor * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_j + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
-
-							// dQ_0/dn1
-							jac[2 - 1] += factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
-
-							// dQ_0/dceq
-							jac[_nComp - 1 - 1] -= factor * yCrystal[0] * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[_nComp - 1 - 1] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]);
+							// Q_0, left BC
+							for (int j = 0; j < _nComp; ++j)
+							{
+								binIdx_j = j - 1;
+								if (cadet_likely((j > 2) && (j + 1 < _nComp)))
+								{
+									// dQ_0/dni
+									jac[j - i] += factor * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 0))
+								{
+									// dQ_0/dc
+									jac[j - i] -= factor * (yCrystal[0] * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) - dBp_dc - dBs_dc) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 1))
+								{
+									// dQ_0/dn0
+									jac[j - i] -= factor * (vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_j + 1]), static_cast<double>(_p))) - dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j])) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 2))
+								{
+									// dQ_0/dn1
+									jac[j - i] += factor * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else
+								{
+									// dQ_0/dceq
+									jac[j - i] -= factor * (yCrystal[0] * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) - dBp_dceq - dBs_dceq) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+							}
 						}
 
 						// Q_1, special case for HR.
@@ -1013,7 +1058,6 @@ namespace cadet
 							// dQ_1/dc, j=0
 							jac[-2] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) * yCrystal[0]; // left face, upwind scheme
 							jac[-2] -= factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * F_i; // right face, HR
-							jac[-2] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]); // nucleation source
 
 							// dQ_1/dn0, j=1
 							jac[-1] += factor / static_cast<double>(_binSizes[binIdx_i]) * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i - 1]) / static_cast<double>(_binSizes[binIdx_i]); // coming from the upwind scheme
@@ -1028,7 +1072,6 @@ namespace cadet
 							// dQ_1/dceq, j=_nComp -1
 							jac[_nComp - 3] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) * yCrystal[0];
 							jac[_nComp - 3] -= factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * F_i;
-							jac[_nComp - 3] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]);
 						}
 
 						// Q_{N_x-1}, right BC
@@ -1037,7 +1080,6 @@ namespace cadet
 							binIdx_i = i - 1;
 							// dQ_{N_x-1}/dc
 							jac[-i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * F_i;
-							jac[-i] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]);
 
 							// dQ_{N_x-1}/dn_{N_x-3}
 							jac[-2] += factor / static_cast<double>(_binSizes[binIdx_i]) * vg_right * dFi_wrt_nim1; // the second term in the product rule is zero
@@ -1050,7 +1092,6 @@ namespace cadet
 
 							//dQ_i/dc_{eq}, j=_nComp - 1
 							jac[1] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * F_i;
-							jac[1] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]);
 						}
 
 						// Q_{ceq}, the last row is zero, which is the default. Do not change.
@@ -1109,10 +1150,10 @@ namespace cadet
 						if (cadet_likely((i > 2) && (i + 2 < _nComp)))
 						{
 							binIdx_i = i - 1;
-							// jacobian, left face, which is the right face of a previous cell. diffusion and nucleation source. 
+
+							// jacobian, left face, which is the right face of a previous cell
 							// dQ_i/dc, j=0
 							jac[-i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * (W_0_right * q_0_right + W_1_right * q_1_right);
-							jac[-i] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]);
 
 							// dQ_i/dn_{i-2}, j=i-2
 							jac[-2] += factor / static_cast<double>(_binSizes[binIdx_i]) * vg_right * (dw0_right_dni_m1 * q_0_right + dw1_right_dni_m1 * q_1_right + W_1_right * dq1_right_dni_m1); // the second term in the product rule is zero
@@ -1125,7 +1166,6 @@ namespace cadet
 
 							//dQ_i/dc_{eq}, j=_nComp - 1
 							jac[_nComp - 1 - i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * (W_0_right * q_0_right + W_1_right * q_1_right);
-							jac[_nComp - 1 - i] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]);
 
 							// update all coefficients
 							// WENO3-related coefficients, right face
@@ -1191,17 +1231,17 @@ namespace cadet
 								if (cadet_likely((j > 0) && (j + 1 < _nComp)))
 								{
 									// dQ_c/dn_i
-									jac[j - i] -= factor * rho_kv * 3.0 * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_binCenters[binIdx_j]), static_cast<double>(_p))) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]);
+									jac[j - i] -= factor * rho_kv * (x_c_3 * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) + 3.0 * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_binCenters[binIdx_j]), static_cast<double>(_p))) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]));
 								}
 								else if (cadet_unlikely(j == 0))
 								{
 									// dQ_c/dc
-									jac[j - i] -= factor * rho_kv * (dBp_dc * substrateConversion_nucleation + 3.0 * dvG_dc_factor * substrateConversion);
+									jac[j - i] -= factor * rho_kv * ((dBp_dc + dBs_dc) * x_c_3 + 3.0 * dvG_dc_factor * substrateConversion);
 								}
 								else
 								{
 									// dQ_c/dc_eq
-									jac[j - i] -= factor * rho_kv * (dBp_dceq * substrateConversion_nucleation + 3.0 * dvG_dceq_factor * substrateConversion);
+									jac[j - i] -= factor * rho_kv * ((dBp_dceq + dBs_dceq) * x_c_3 + 3.0 * dvG_dceq_factor * substrateConversion);
 								}
 							}
 						}
@@ -1210,19 +1250,36 @@ namespace cadet
 						else if (cadet_unlikely(i == 1))
 						{
 							binIdx_i = i - 1;
-							// dQ_0/dc
-							jac[0 - 1] -= factor * yCrystal[0] * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[0 - 1] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]);
-
-							// dQ_0/dn0
-							jac[1 - 1] -= factor * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_j + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
-
-							// dQ_0/dn1
-							jac[2 - 1] += factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
-
-							// dQ_0/dceq
-							jac[_nComp - 1 - 1] -= factor * yCrystal[0] * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[_nComp - 1 - 1] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]);
+							// Q_0, left BC
+							for (int j = 0; j < _nComp; ++j)
+							{
+								binIdx_j = j - 1;
+								if (cadet_likely((j > 2) && (j + 1 < _nComp)))
+								{
+									// dQ_0/dni
+									jac[j - i] += factor * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 0))
+								{
+									// dQ_0/dc
+									jac[j - i] -= factor * (yCrystal[0] * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) - dBp_dc - dBs_dc) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 1))
+								{
+									// dQ_0/dn0
+									jac[j - i] -= factor * (vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_j + 1]), static_cast<double>(_p))) - dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j])) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 2))
+								{
+									// dQ_0/dn1
+									jac[j - i] += factor * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else
+								{
+									// dQ_0/dceq
+									jac[j - i] -= factor * (yCrystal[0] * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) - dBp_dceq - dBs_dceq) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+							}
 						}
 
 						// Q_1, special case for weno3.
@@ -1269,7 +1326,6 @@ namespace cadet
 							// dQ_1/dc, j=0
 							jac[-2] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) * yCrystal[0]; // left face, upwind scheme
 							jac[-2] -= factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * (W_0_right * q_0_right + W_1_right * q_1_right); // right face, WENO3
-							jac[-2] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 
 							// dQ_1/dn0, j=1
 							jac[-1] += factor / static_cast<double>(_binSizes[binIdx_i]) * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i - 1]) / static_cast<double>(_binSizes[binIdx_i]); // coming from the upwind scheme
@@ -1284,7 +1340,6 @@ namespace cadet
 							// dQ_1/dceq, j=_nComp -1
 							jac[_nComp - 3] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) * yCrystal[0];
 							jac[_nComp - 3] -= factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * (W_0_right * q_0_right + W_1_right * q_1_right);
-							jac[_nComp - 3] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 						}
 
 						// Q_{N_x-1}, right BC
@@ -1293,7 +1348,6 @@ namespace cadet
 							binIdx_i = i - 1;
 							// dQ_{N_x-1}/dc
 							jac[-i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * (W_0_right * q_0_right + W_1_right * q_1_right);
-							jac[-i] += factor* dBp_dc* static_cast<double>(_nPDF[binIdx_i]); // nucleation
 
 							// dQ_{N_x-1}/dn_{N_x-3}
 							jac[-2] += factor / static_cast<double>(_binSizes[binIdx_i]) * vg_right * (dw0_right_dni_m1 * q_0_right + dw1_right_dni_m1 * q_1_right + W_1_right * dq1_right_dni_m1); // the second term in the product rule is zero
@@ -1306,7 +1360,6 @@ namespace cadet
 
 							//dQ_i/dc_{eq}, j=_nComp - 1
 							jac[1] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * (W_0_right * q_0_right + W_1_right * q_1_right);
-							jac[1] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 						}
 
 						// Q_{ceq}, the last row is zero, which is the default. Do not change.
@@ -1457,10 +1510,9 @@ namespace cadet
 						if (cadet_likely((i > 3) && (i + 3 < _nComp)))
 						{
 							binIdx_i = i - 1;
-							// jacobian, left face, which is the right face of a previous cell. diffusion and nucleation
+							// jacobian, left face, which is the right face of a previous cell
 						    // dQ_i/dc
 							jac[-i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2);
-							jac[-i] += factor* dBp_dc* static_cast<double>(_nPDF[binIdx_i]); // nucleation
 
 							// dQ_i/dn_{i-2}
 							jac[-3] += factor / static_cast<double>(_binSizes[binIdx_i]) * vg_right * (dw0_wrt_dni_m2 * q_0 + dw1_wrt_dni_m2 * q_1 + dw2_wrt_dni_m2 * q_2 + W_2 * dq2_wrt_dni_m2); // the second and fourth terms are zero
@@ -1479,7 +1531,6 @@ namespace cadet
 
 							// dQ_2/dc_eq
 							jac[_nComp - 1 - i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2);
-							jac[_nComp - 1 - i] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 
 							// update all coefficients
 							// WENO5, right face
@@ -1582,6 +1633,7 @@ namespace cadet
 
 							// dQ_2/dc_eq
 							jac[_nComp - 1 - i] -= factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2);
+
 						}
 
 						// Q_c, mass balance, independent on the scheme. Do not change.
@@ -1593,17 +1645,17 @@ namespace cadet
 								if (cadet_likely((j > 0) && (j + 1 < _nComp)))
 								{
 									// dQ_c/dn_i
-									jac[j - i] -= factor * rho_kv * 3.0 * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_binCenters[binIdx_j]), static_cast<double>(_p))) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]);
+									jac[j - i] -= factor * rho_kv * (x_c_3 * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) + 3.0 * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_binCenters[binIdx_j]), static_cast<double>(_p))) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]));
 								}
 								else if (cadet_unlikely(j == 0))
 								{
 									// dQ_c/dc
-									jac[j - i] -= factor * rho_kv * (dBp_dc * substrateConversion_nucleation + 3.0 * dvG_dc_factor * substrateConversion);
+									jac[j - i] -= factor * rho_kv * ((dBp_dc + dBs_dc) * x_c_3 + 3.0 * dvG_dc_factor * substrateConversion);
 								}
 								else
 								{
 									// dQ_c/dc_eq
-									jac[j - i] -= factor * rho_kv * (dBp_dceq * substrateConversion_nucleation + 3.0 * dvG_dceq_factor * substrateConversion);
+									jac[j - i] -= factor * rho_kv * ((dBp_dceq + dBs_dceq) * x_c_3 + 3.0 * dvG_dceq_factor * substrateConversion);
 								}
 							}
 						}
@@ -1612,19 +1664,36 @@ namespace cadet
 						else if (cadet_unlikely(i == 1))
 						{
 							binIdx_i = i - 1;
-							// dQ_0/dc
-							jac[0 - 1] -= factor * yCrystal[0] * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[0 - 1] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]);
-
-							// dQ_0/dn0
-							jac[1 - 1] -= factor * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_j + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
-
-							// dQ_0/dn1
-							jac[2 - 1] += factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
-
-							// dQ_0/dceq
-							jac[_nComp - 1 - 1] -= factor * yCrystal[0] * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) / static_cast<double>(_binSizes[binIdx_i]);
-							jac[_nComp - 1 - 1] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]);
+							// Q_0, left BC
+							for (int j = 0; j < _nComp; ++j)
+							{
+								binIdx_j = j - 1;
+								if (cadet_likely((j > 2) && (j + 1 < _nComp)))
+								{
+									// dQ_0/dni
+									jac[j - i] += factor * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 0))
+								{
+									// dQ_0/dc
+									jac[j - i] -= factor * (yCrystal[0] * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) - dBp_dc - dBs_dc) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 1))
+								{
+									// dQ_0/dn0
+									jac[j - i] -= factor * (vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_j + 1]), static_cast<double>(_p))) - dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j])) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else if (cadet_unlikely(j == 2))
+								{
+									// dQ_0/dn1
+									jac[j - i] += factor * dBs_dni_factor * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binCenters[binIdx_j]) * static_cast<double>(_binSizes[binIdx_j]) / static_cast<double>(_binSizes[binIdx_i]) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i]) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+								else
+								{
+									// dQ_0/dceq
+									jac[j - i] -= factor * (yCrystal[0] * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p))) - dBp_dceq - dBs_dceq) / static_cast<double>(_binSizes[binIdx_i]);
+								}
+							}
 						}
 
 						// Q_1, special case for weno5.
@@ -1638,7 +1707,6 @@ namespace cadet
 							// dQ_1/dc, j=0
 							jac[-2] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) * yCrystal[0]; // left face, upwind scheme
 							jac[-2] -= factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * (W_0_weno3_left * q_0_weno3_left + W_1_weno3_left * q_1_weno3_left); // right face, WENO3
-							jac[-2] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 
 							// dQ_1/dn0, j=1
 							jac[-1] += factor / static_cast<double>(_binSizes[binIdx_i]) * vG_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) + factor * static_cast<double>(_growthDispersionRate) / static_cast<double>(_binCenterDists[binIdx_i - 1]) / static_cast<double>(_binSizes[binIdx_i]); // coming from the upwind scheme
@@ -1653,7 +1721,6 @@ namespace cadet
 							// dQ_1/dceq, j=_nComp -1
 							jac[_nComp - 3] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i]), static_cast<double>(_p))) * yCrystal[0];
 							jac[_nComp - 3] -= factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * (W_0_weno3_left * q_0_weno3_left + W_1_weno3_left * q_1_weno3_left);
-							jac[_nComp - 3] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 						}
 
 						// Q_2, special case for weno5.
@@ -1663,7 +1730,6 @@ namespace cadet
 							// left face uses WENO3
 							// dQ_2/dc
 							jac[-3] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * (W_0_weno3_left * q_0_weno3_left + W_1_weno3_left * q_1_weno3_left);
-							jac[-3] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 
 							// dQ_2/dn0
 							jac[-2] += factor / static_cast<double>(_binSizes[binIdx_i]) * vg_right * (dw0_right_dni_m1_weno3_left * q_0_weno3_left + dw1_right_dni_m1_weno3_left * q_1_weno3_left + W_1_weno3_left * dq1_right_dni_m1_weno3_left); // the second term in the product rule is zero
@@ -1676,7 +1742,6 @@ namespace cadet
 
 							// dQ_2/dc_eq
 							jac[_nComp - 4] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * (W_0_weno3_left * q_0_weno3_left + W_1_weno3_left * q_1_weno3_left);
-							jac[_nComp - 4] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 
 							// WENO5, right face
 							IS_0 = static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
@@ -1777,6 +1842,7 @@ namespace cadet
 
 							// dQ_2/dc_eq
 							jac[_nComp - 4] -= factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2);
+
 						}
 
 						// Q_{N_x-2}, special case for WENO5
@@ -1786,7 +1852,6 @@ namespace cadet
 							// left face is weno5
 							// dQ_{N_x-2}/dc
 							jac[-i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2);
-							jac[-i] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 
 							// dQ_{N_x-1}/dn_{N_x-4}
 							jac[-3] += factor / static_cast<double>(_binSizes[binIdx_i]) * vg_right * (dw0_wrt_dni_m2 * q_0 + dw1_wrt_dni_m2 * q_1 + dw2_wrt_dni_m2 * q_2 + W_2 * dq2_wrt_dni_m2); // the second and fourth terms are zero
@@ -1805,7 +1870,6 @@ namespace cadet
 
 							// dQ_2/dc_eq
 							jac[_nComp - 1 - i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * (W_0 * q_0 + W_1 * q_1 + W_2 * q_2);
-							jac[_nComp - 1 - i] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 
 							// right face is weno3
 							dvG_dc_right = dvG_dc_factor * (static_cast<double>(_a) + static_cast<double>(_growthConstant) * pow(static_cast<double>(_bins[binIdx_i + 1]), static_cast<double>(_p)));
@@ -1835,7 +1899,6 @@ namespace cadet
 							// left face is weno3
 							// dQ_{N_x-1}/dc
 							jac[-i] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dc_right * (W_0_weno3_right * q_0_weno3_right + W_1_weno3_right * q_1_weno3_right);
-							jac[-i] += factor * dBp_dc * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 
 							// dQ_{N_x-1}/dn_{N_x-3}
 							jac[-2] += factor / static_cast<double>(_binSizes[binIdx_i]) * vg_right * (dw0_right_dni_m1_weno3_right * q_0_weno3_right + dw1_right_dni_m1_weno3_right * q_1_weno3_right + W_1_weno3_right * dq1_right_dni_m1_weno3_right); // the second term in the product rule is zero
@@ -1848,7 +1911,6 @@ namespace cadet
 
 							// dQ_i/dc_{eq}
 							jac[1] += factor / static_cast<double>(_binSizes[binIdx_i]) * dvG_dceq_right * (W_0_weno3_right * q_0_weno3_right + W_1_weno3_right * q_1_weno3_right);
-							jac[1] += factor * dBp_dceq * static_cast<double>(_nPDF[binIdx_i]); // nucleation
 						}
 
 						// Q_{ceq}, the last row is zero, which is the default. Do not change.
