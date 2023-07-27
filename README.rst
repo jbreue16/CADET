@@ -4,11 +4,14 @@ CADET
 .. image:: https://img.shields.io/github/release/modsim/cadet.svg
    :target: https://github.com/modsim/CADET/releases
 
-.. image:: https://img.shields.io/github/downloads/modsim/cadet/latest/total.svg
-   :target: https://github.com/modsim/CADET/releases
-
 .. image:: https://github.com/modsim/CADET/actions/workflows/ci.yml/badge.svg
-   :target: https://github.com/modsim/CADET/actions
+   :target: https://github.com/modsim/CADET/actions/workflows/ci.yml
+
+.. image:: https://anaconda.org/conda-forge/cadet/badges/downloads.svg
+   :target: https://anaconda.org/conda-forge/cadet
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.8179015.svg
+   :target: https://doi.org/10.5281/zenodo.8179015
 
 - **Website (including documentation):** https://cadet.github.io
 - **Forum:** https://forum.cadet-web.de
