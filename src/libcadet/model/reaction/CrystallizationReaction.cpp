@@ -739,17 +739,18 @@ namespace cadet
 				double const rho_kv = static_cast<double>(_nucleiMassDensity) * static_cast<double>(_volShapeFactor);
 				double const x_c_3 = static_cast<double>(_bins[0]) * static_cast<double>(_bins[0]) * static_cast<double>(_bins[0]);
 
-				double const dBp_dc = static_cast<double>(_primaryNucleationRate) * static_cast<double>(_u) * pow(s, static_cast<double>(_u) - 1) / y[_nComp - 1];
-				double const dBp_dceq = -static_cast<double>(_primaryNucleationRate) * static_cast<double>(_u) * pow(s, static_cast<double>(_u) - 1) * y[0] / y[_nComp - 1] / y[_nComp - 1];
-				double const dBs_dc = rho_kv * static_cast<double>(_secondaryNucleationRate) * static_cast<double>(_b) * pow(s, static_cast<double>(_b) - 1) * M / y[_nComp - 1];
-				double const dBs_dceq = -rho_kv * static_cast<double>(_secondaryNucleationRate) * static_cast<double>(_b) * pow(s, static_cast<double>(_b) - 1) * M * y[0] / y[_nComp - 1] / y[_nComp - 1];
-				double const dvG_dc_factor = static_cast<double>(_growthRateConstant) * static_cast<double>(_g) * pow(s, static_cast<double>(_g) - 1) / y[_nComp - 1];
-				double const dvG_dceq_factor = -static_cast<double>(_growthRateConstant) * static_cast<double>(_g) * pow(s, static_cast<double>(_g) - 1) * y[0] / y[_nComp - 1] / y[_nComp - 1];
-				double const dBs_dni_factor = rho_kv * static_cast<double>(_secondaryNucleationRate) * pow(s, static_cast<double>(_b));
+				// rewrite these to 0 if s = 0.0
+				double const dBp_dc = cadet_unlikely(s > 0.0) ? static_cast<double>(_primaryNucleationRate) * static_cast<double>(_u) * pow(s, static_cast<double>(_u) - 1.0) / y[_nComp - 1] : 0.0;
+				double const dBp_dceq = cadet_unlikely(s > 0.0) ? -static_cast<double>(_primaryNucleationRate) * static_cast<double>(_u) * pow(s, static_cast<double>(_u) - 1.0) * y[0] / y[_nComp - 1] / y[_nComp - 1] : 0.0;
+				double const dBs_dc = cadet_unlikely(s > 0.0) ? rho_kv * static_cast<double>(_secondaryNucleationRate) * static_cast<double>(_b) * pow(s, static_cast<double>(_b) - 1.0) * M / y[_nComp - 1] : 0.0;
+				double const dBs_dceq = cadet_unlikely(s > 0.0) ? -rho_kv * static_cast<double>(_secondaryNucleationRate) * static_cast<double>(_b) * pow(s, static_cast<double>(_b) - 1.0) * M * y[0] / y[_nComp - 1] / y[_nComp - 1] : 0.0;
+				double const dvG_dc_factor = cadet_unlikely(s > 0.0) ? static_cast<double>(_growthRateConstant) * static_cast<double>(_g) * pow(s, static_cast<double>(_g) - 1.0) / y[_nComp - 1] : 0.0;
+				double const dvG_dceq_factor = cadet_unlikely(s > 0.0) ? -static_cast<double>(_growthRateConstant) * static_cast<double>(_g) * pow(s, static_cast<double>(_g) - 1.0) * y[0] / y[_nComp - 1] / y[_nComp - 1] : 0.0;
+				double const dBs_dni_factor = cadet_unlikely(s > 0.0) ? rho_kv * static_cast<double>(_secondaryNucleationRate) * pow(s, static_cast<double>(_b)) : 0.0;
 
 				// the jacobian has a shape: (_nComp) x (_nComp), undefined ones are 0.0.
 				// the first loop i iterates over rows, the second loop j iterates over columns. The offset i is used to move the jac index to 0 at the beginning of iterating over j.
-				const int GrowthOrder = static_cast<double>(_growthSchemeOrder);
+				const int GrowthOrder = static_cast<int>(_growthSchemeOrder);
 				int binIdx_i = 0;
 				int binIdx_j = 0;
 				switch (GrowthOrder)
@@ -1553,7 +1554,7 @@ namespace cadet
 
 							// jacobian
 							dIS0_wrt_dni_p2 = 2.0 * static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
-							dIS0_wrt_dni_p1 = -2.0 * static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2] - yCrystal[binIdx_i]) - 2.0 * static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+							dIS0_wrt_dni_p1 = -2.0 * static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2] - yCrystal[binIdx_i]) - 2.0 * static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
 							dIS0_wrt_dni = static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + 2.0 * static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
 
 							dIS1_wrt_dni_p1 = static_cast<double>(_weno5->IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + 2.0 * static_cast<double>(_weno5->IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
@@ -1763,7 +1764,7 @@ namespace cadet
 
 							// jacobian
 							dIS0_wrt_dni_p2 = 2.0 * static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
-							dIS0_wrt_dni_p1 = -2.0 * static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2] - yCrystal[binIdx_i]) - 2.0 * static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i - 1]);
+							dIS0_wrt_dni_p1 = -2.0 * static_cast<double>(_weno5->IS_0_coeff_1[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (2.0 * yCrystal[binIdx_i + 1] - yCrystal[binIdx_i + 2] - yCrystal[binIdx_i]) - 2.0 * static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
 							dIS0_wrt_dni = static_cast<double>(_weno5->IS_0_coeff_2[binIdx_i]) * (yCrystal[binIdx_i + 2] - yCrystal[binIdx_i + 1]) + 2.0 * static_cast<double>(_weno5->IS_0_coeff_3[binIdx_i]) * (yCrystal[binIdx_i] - yCrystal[binIdx_i + 1]);
 
 							dIS1_wrt_dni_p1 = static_cast<double>(_weno5->IS_1_coeff_2[binIdx_i]) * (yCrystal[binIdx_i - 1] - yCrystal[binIdx_i]) + 2.0 * static_cast<double>(_weno5->IS_1_coeff_3[binIdx_i]) * (yCrystal[binIdx_i + 1] - yCrystal[binIdx_i]);
