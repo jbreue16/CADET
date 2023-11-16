@@ -36,21 +36,35 @@ Optionally, use `mamba <https://github.com/mamba-org/mamba>`_ which uses a faste
 
 Citing
 ------------
-The development of CADET has been a remarkable collaborative effort, with multiple dedicated individuals contributing their expertise to create a powerful and versatile open-source software tool. Countless hours of hard work and innovation have been invested to provide the scientific community with a valuable resource for chromatography analysis and design. As an open-source project, CADET relies on the support and recognition from users and researchers to thrive. Therefore, we kindly request that any publications, research, or work leveraging the capabilities of CADET acknowledge its creators and their seminal contributions by citing a relevant subset of the following publications.
+The development of CADET has been a collaborative effort, with multiple dedicated individuals contributing their expertise to create a powerful and versatile open-source software tool. Countless hours of hard work have been invested to provide the scientific community with a valuable resource. As an open-source project, CADET relies on the support and recognition from users and researchers to thrive. Therefore, we kindly ask that any publications or projects leveraging the capabilities of CADET acknowledge its creators and their contributions by citing an adequate selection of our publications.
 
-Cite the software in general:
+**General:**
 
-- **Leweke, S.; von Lieres, E.: Chromatography Analysis and Design Toolkit (CADET)**, Computers and Chemical Engineering 113 (2018), 274–294. `DOI: 10.1016/j.compchemeng.2018.02.025 <https://doi.org/10.1016/j.compchemeng.2018.02.025>`_
+- Leweke, S.; von Lieres, E.: `Chromatography Analysis and Design Toolkit (CADET) <https://doi.org/10.1016/j.compchemeng.2018.02.025>`_, Computers and Chemical Engineering **113** (2018), 274–294.
 
-Cite numerical algorithms and techniques:
+- von Lieres, E.; Andersson, J.: `A fast and accurate solver for the general rate model of column liquid chromatography <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_, Computers and Chemical Engineering **34,8** (2010), 1180–1191.
 
-- **von Lieres, E.; Andersson, J.: A fast and accurate solver for the general rate model of column liquid chromatography**, Computers and Chemical Engineering 34,8 (2010), 1180–1191. `DOI: 10.1016/j.compchemeng.2010.03.008 <https://doi.org/10.1016/j.compchemeng.2010.03.008>`_
+**Numerics:**
 
-Cite parameter sensitivities and algorithmic differentiation:
+- Breuer, J. M.; Leweke, S.; Schmölder, J.; Gassner, G.; von Lieres, E.: `Spatial discontinuous Galerkin spectral element method for a family of chromatography models in CADET <https://doi.org/10.1016/j.compchemeng.2023.108340>`_, Computers and Chemical Engineering **177** (2023), 108340.
 
-- **Püttmann, A.; Schnittert, S.; Leweke, S.; von Lieres, E.: Utilizing algorithmic differentiation to efficiently compute chromatograms and parameter sensitivities**, Chemical Engineering Science, 139 (2016), 152–162. `DOI: 10.1016/j.ces.2015.08.050 <https://doi.org/10.1016/j.ces.2015.08.050>`_
+- Leweke, S.; von Lieres, E.: `Fast arbitrary order moments and arbitrary precision solution of the general rate model of column liquid chromatography with linear isotherm <http://dx.doi.org/10.1016/j.compchemeng.2015.09.009>`_, Computers and Chemical Engineering **84** (2016), 350–362.
 
-- **Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography**, Computers and Chemical Engineering 56,13 (2013), 46-57. `DOI: 10.1016/j.compchemeng.2013.04.021 <https://doi.org/10.1016/j.compchemeng.2013.04.021>`_
+- Püttmann, A.; Schnittert, S.; Naumann, U.; von Lieres, E.: `Fast and accurate parameter sensitivities for the general rate model of column liquid chromatography <http://dx.doi.org/10.1016/j.compchemeng.2013.04.021>`_, Computers and Chemical Engineering **56** (2013), 46–57.
+
+**Applications:**
+
+- Heymann, W.; Glaser, J.; Schlegel, F.; Johnson, W.; Rolandi, P.; von Lieres, E.: `Advanced score system and automated search strategies for parameter estimation in mechanistic chromatography modeling <https://doi.org/10.1016/j.chroma.2021.462693>`_, Journal of Chromatography A **1661** (2022): 462693.
+
+- He, Q.-L.; Leweke, S.; von Lieres, E.: `Efficient numerical simulation of simulated moving bed chromatography with a single-column solver <http://doi.org/10.1016/j.compchemeng.2017.12.022>`_, Computers and Chemical Engineering **111** (2018), 183–198.
+
+- Freier, L.; von Lieres, E.: `Robust multi-objective global optimization of stochastic processes with a case study in gradient elution chromatography <http://doi.org/10.1002/biot.201700257>`_, Biotechnology Journal **13,1** (2018), 1700257.
+
+- Freier, L.; von Lieres, E.: [Multi-objective global optimization (MOGO): `Algorithm and case study in gradient elution chromatography <http://dx.doi.org/10.1002/biot.201600613>`_, Biotechnology Journal **12,7** (2017), 1600613.
+
+- Diedrich, J.; Heymann, W.; Leweke, S.; Kunert, C.; Johnson, W.; Hunt, S.; Todd, B.; von Lieres, E.: `Multi-state steric mass-action model and case study on complex high loading behavior of mAb on ion exchange tentacle resin <https://doi.org/10.1016/j.chroma.2017.09.039>`_, Journal of Chromatography A **1525** (2017), 60–70.
+
+- Püttmann, A.; Schnittert, S.; Leweke, S.; von Lieres, E.: `Utilizing algorithmic differentiation to efficiently compute chromatograms and parameter sensitivities <https://doi.org/10.1016/j.ces.2015.08.050>`_, Chemical Engineering Science, **139** (2016), 152–162.
 
 Additionally, we recommend citing the zenodo doi for the specific release that you used in your work to ensure reproducibility.
 
