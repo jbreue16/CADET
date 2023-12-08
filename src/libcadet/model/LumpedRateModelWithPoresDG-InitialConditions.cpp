@@ -343,7 +343,7 @@ namespace cadet
 					LinearBufferAllocator tlmAlloc = threadLocalMem.get();
 
 					// Reuse memory of band matrix for dense matrix
-					linalg::DenseMatrixView fullJacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ type }) - idxr.offsetC() + pblk], nullptr, mask.len, mask.len);
+					linalg::DenseMatrixView fullJacobianMatrix(_globalJacDisc.valuePtr() + _globalJacDisc.outerIndexPtr()[idxr.offsetCp(ParticleTypeIndex{ type }) - idxr.offsetC() + pblk * idxr.strideParBlock(pblk)], nullptr, mask.len, mask.len);
 
 					// z coordinate (column length normed to 1) of current node - needed in externally dependent adsorption kinetic
 					const double z = _convDispOp.relativeCoordinate(pblk);
@@ -362,7 +362,7 @@ namespace cadet
 					double* const fullX = static_cast<double*>(fullXBuffer);
 
 					BufferedArray<double> jacobianMemBuffer = tlmAlloc.array<double>(probSize * probSize);
-					linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), _globalJacDisc.outerIndexPtr() + pblk * probSize, probSize, probSize);
+					linalg::DenseMatrixView jacobianMatrix(static_cast<double*>(jacobianMemBuffer), /*_globalJacDisc.outerIndexPtr() + pblk * probSize*/nullptr, probSize, probSize);
 
 					BufferedArray<double> conservedQuantsBuffer = tlmAlloc.array<double>(numActiveComp);
 					double* const conservedQuants = static_cast<double*>(conservedQuantsBuffer);
