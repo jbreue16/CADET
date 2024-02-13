@@ -19,7 +19,7 @@
 #ifndef LIBCADET_DGTOOLBOX_HPP_
 #define LIBCADET_DGTOOLBOX_HPP_
 
-#include <Eigen/Dense>
+#include <eigen3/Eigen/Dense>
 
 namespace cadet
 {

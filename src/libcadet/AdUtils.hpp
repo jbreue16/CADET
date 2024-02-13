@@ -20,7 +20,7 @@
 
 #include "AutoDiff.hpp"
 
-#include<Eigen/Sparse>
+#include<eigen3/Eigen/Sparse>
 
 namespace cadet
 {

@@ -31,8 +31,8 @@
 #include "model/ModelUtils.hpp"
 #include "ParameterMultiplexing.hpp"
 
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Sparse>
 #include <array>
 #include <vector>
 

@@ -29,8 +29,8 @@
 
 #include <unordered_map>
 #include <unordered_set>
-#include <Eigen/Dense>
-#include <Eigen/Sparse>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Sparse>
 #include <vector>
 
 using namespace Eigen;

@@ -15,7 +15,7 @@
 #include "linalg/SparseMatrix.hpp"
 #include "AdUtils.hpp"
 
-#include <Eigen/Sparse>
+#include <eigen3/Eigen/Sparse>
 #include <limits>
 #include <algorithm>
 

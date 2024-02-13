@@ -20,7 +20,7 @@
 #include "cadet/cadetCompilerInfo.hpp"
 #include "common/CompilerSpecific.hpp"
 
-#include <Eigen/Core>
+#include <eigen3/Eigen/Core>
 #include <type_traits>
 
 #if defined(ACTIVE_SFAD) || defined(ACTIVE_SETFAD)

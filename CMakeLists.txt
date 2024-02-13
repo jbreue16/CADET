@@ -399,7 +399,7 @@ endif()
 
 set(EIGEN_TARGET "")
 if (ENABLE_DG)
-	find_package(Eigen3 3.4 NO_MODULE)
+	find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 
 	# Disable DG if Eigen is not present
 	if (NOT TARGET Eigen3::Eigen)
@@ -407,6 +407,8 @@ if (ENABLE_DG)
 		set(ENABLE_DG OFF)
 	else()
 		set(EIGEN_TARGET "Eigen3::Eigen")
+		get_target_property(Eigen3_INCLUDE_DIRS Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
+		include_directories(${Eigen3_INCLUDE_DIRS} "${Eigen3_INCLUDE_DIRS}/..")
 	endif()
 endif()
 
