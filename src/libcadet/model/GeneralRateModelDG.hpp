@@ -274,7 +274,8 @@ protected:
 		unsigned int* parPolyDeg; //!< polynomial degree of particle elements
 		unsigned int* nParNode; //!< Array with number of radial nodes per cell in each particle type
 		unsigned int* nParPoints; //!< Array with number of radial nodes per cell in each particle type
-		bool* parExactInt;	//!< 1  for exact integration, 0 for inexact LGL quadrature for each particle type
+		bool* parExactInt; //!< 1 for exact integration, 0 for inexact LGL quadrature for each particle type
+		bool* parGSM; //!< specifies whether (single element) Galerkin spectral method should be used in particles
 		unsigned int* parTypeOffset; //!< Array with offsets (in particle block) to particle type, additional last element contains total number of particle DOFs
 		unsigned int* nBound; //!< Array with number of bound states for each component and particle type (particle type major ordering)
 		unsigned int* boundOffset; //!< Array with offset to the first bound state of each component in the solid phase (particle type major ordering)
@@ -300,6 +301,8 @@ protected:
 		Eigen::VectorXd* parInvWeights; //!< Array with weights for LGL quadrature of size nNodes for each particle
 		Eigen::MatrixXd* parInvMM; //!< dense inverse mass matrix for exact integration of integrals with metrics, for each particle
 		Eigen::MatrixXd* parInvMM_Leg; //!< dense inverse mass matrix (Legendre) for exact integration of integral without metric, for each particle
+		Eigen::MatrixXd* secondOrderStiffnessM; //!< specific second order stiffness matrix
+		Eigen::MatrixXd* minus_parInvMM_Ar; //!< inverse mass matrix times specific second order stiffness matrix
 		Eigen::Vector<active, Dynamic>* Ir; //!< metric part for each particle type and cell, particle type major ordering
 		Eigen::MatrixXd* Dr; //!< derivative matrices including metrics for each particle type and cell, particle type major ordering
 		Eigen::VectorXi offsetMetric; //!< offset required to access metric dependent DG operator storage of Ir, Dr -> summed up nCells of all previous parTypes
@@ -360,7 +363,9 @@ protected:
 			Ir = new Vector<active, Dynamic>[offsetMetric[nParType]];
 			minus_InvMM_ST = new MatrixXd[offsetMetric[nParType]];
 			parInvMM = new MatrixXd[offsetMetric[nParType]];
-
+			secondOrderStiffnessM = new MatrixXd[nParType];
+			minus_parInvMM_Ar = new MatrixXd[nParType];
+			
 			/* compute metric independent DG operators for bulk and particles. Note that metric dependent DG operators are computet in updateRadialDisc(). */
 
 			for (int parType = 0; parType < nParType; parType++)
@@ -376,9 +381,14 @@ protected:
 			// particle jacobian blocks (each is unique)
 			DGjacParDispBlocks = new MatrixXd[std::accumulate(nParCell, nParCell + nParType, 0)];
 
-			for (unsigned int type = 0; type < nParType; type++) {
-				for (unsigned int block = 0; block < nParCell[type]; block++) {
-					DGjacParDispBlocks[offsetMetric[type] + block] = DGjacobianParDispBlock(block + 1u, type, parGeomSurfToVol[type]);
+			for (unsigned int type = 0; type < nParType; type++)
+			{
+				for (unsigned int block = 0; block < nParCell[type]; block++)
+				{
+					if (parGSM[type])
+						DGjacParDispBlocks[offsetMetric[type] + block] = GSMjacobianParDispBlock(type, parGeomSurfToVol[type]);
+					else
+						DGjacParDispBlocks[offsetMetric[type] + block] = DGjacobianParDispBlock(block + 1u, type, parGeomSurfToVol[type]);
 				}
 			}
 		}
@@ -418,7 +428,7 @@ protected:
 				gBlock *= 2.0 / static_cast<double>(deltaR[offsetMetric[parType] + (cellIdx - 1)]);
 			}
 			else {
-
+				// inexact integration not maintained due to inferior performance. Code is part of calcParticleCollocationDGSEMJacobian()
 			}
 
 			return gBlock;
@@ -470,6 +480,36 @@ protected:
 		 * @param [in] exInt true if exact integration DG scheme
 		 * @param [in] cellIdx cell index
 		 */
+		Eigen::MatrixXd GSMjacobianParDispBlock(unsigned int parType, double parGeomSurfToVol) {
+
+			MatrixXd dispBlock;
+
+			// Inner dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
+			dispBlock = MatrixXd::Zero(nParNode[parType], 3 * nParNode[parType] + 2);
+			MatrixXd B = getParBMatrix(parType, 1, parGeomSurfToVol); // "Lifting" matrix
+
+			// todo is the slab treated differently for this discretization?
+			// no surface integral contribution here, since that is treated somewhere else?
+
+			if (parGeomSurfToVol != SurfVolRatioSlab) {
+				dispBlock.block(0, nParNode[parType] + 1, nParNode[parType], nParNode[parType]) = minus_parInvMM_Ar[parType];
+				//dispBlock.block(0, nParNode[parType], nParNode[parType], nParNode[parType] + 2) = minus_InvMM_ST[offsetMetric[parType] + (cellIdx - 1)] * gBlock;
+				//dispBlock += parInvMM[offsetMetric[parType] + (cellIdx - 1)] * B * gStarDC;
+			}
+			else {
+				dispBlock.block(0, nParNode[parType] + 1, nParNode[parType], nParNode[parType]) = minus_parInvMM_Ar[parType];
+				//dispBlock.block(0, nParNode[parType], nParNode[parType], nParNode[parType] + 2) = (parPolyDerM[parType] - parInvMM[parType] * B) * gBlock;
+				//dispBlock += parInvMM[parType] * B * gStarDC;
+			}
+			dispBlock *= 2.0 / static_cast<double>(deltaR[offsetMetric[parType]]) * 2.0 / static_cast<double>(deltaR[offsetMetric[parType]]);
+
+			return -dispBlock; // *-1 for residual
+		}
+		/**
+		 * @brief calculates the dispersion part of the DG jacobian
+		 * @param [in] exInt true if exact integration DG scheme
+		 * @param [in] cellIdx cell index
+		 */
 		Eigen::MatrixXd DGjacobianParDispBlock(unsigned int cellIdx, unsigned int parType, double parGeomSurfToVol) {
 
 			MatrixXd dispBlock;
@@ -492,7 +532,7 @@ protected:
 				dispBlock *= 2.0 / static_cast<double>(deltaR[offsetMetric[parType] + (cellIdx - 1)]);
 			}
 			else {
-				// inexact integration collocation DGSEM deprecated here
+				// inexact integration is not maintained due to inferior performance. Code is in calcParticleCollocationDGSEMJacobian
 			}
 
 			return -dispBlock; // *-1 for residual
@@ -767,6 +807,15 @@ protected:
 	}
 
 	template<typename StateType, typename ResidualType>
+	void parGSMVolumeIntegral(const int parType, Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer) {
+
+		int nNodes = _disc.nParNode[parType];
+
+		stateDer.segment(0, nNodes)
+			-= (_disc.minus_parInvMM_Ar[parType].template cast<StateType>() * state.segment(0, nNodes)).template cast<ResidualType>();
+	}
+
+	template<typename StateType, typename ResidualType>
 	void parVolumeIntegral(const int parType, const bool aux, Eigen::Map<const Vector<StateType, Dynamic>, 0, InnerStride<Dynamic>>& state, Eigen::Map<Vector<ResidualType, Dynamic>, 0, InnerStride<Dynamic>>& stateDer) {
 
 		int nNodes = _disc.nParNode[parType];
@@ -796,7 +845,7 @@ protected:
 			if (_parGeomSurfToVol[parType] != _disc.SurfVolRatioSlab && _parCoreRadius[parType] == 0.0) {
 				Cell0 = 1;
 
-				// estimate volume integral except for boundary node
+				// compute volume integral except for boundary node
 				stateDer.segment(1, nNodes - 1) -= (_disc.Dr[_disc.offsetMetric[parType]].block(1, 1, nNodes - 1, nNodes - 1).template cast<StateType>() * state.segment(1, nNodes - 1)).template cast<ResidualType>();
 				// estimate volume integral for boundary node: sum_{j=1}^N state_j * w_j * D_{j,0} * r_j
 				stateDer[0] += static_cast<ResidualType>(

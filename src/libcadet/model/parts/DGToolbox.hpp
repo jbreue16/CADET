@@ -75,6 +75,15 @@ Eigen::MatrixXd derivativeMatrix(const unsigned int polyDeg, const Eigen::Vector
  * @param [in] nodes polynomial interpolation nodes
  */
 Eigen::MatrixXd invMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nodes, const double alpha = 0.0, const double beta = 0.0);
+/**
+ * @brief calculates a specific second order nodal stiffness matrix
+ * @detail for integrals including terms of the form (1 - \xi)^\alpha (1 + \xi)^\beta. Computation via transformation to the respective Jacobi polynomial
+ * @param [in] polyDeg polynomial degree
+ * @param [in] a Jacobi polynomial parameter
+ * @param [in] b Jacobi polynomial parameter
+ * @param [in] nodes polynomial interpolation nodes
+ */
+Eigen::MatrixXd secondOrderStiffnessMatrix(const unsigned int polyDeg, const double alpha, const double beta, const Eigen::VectorXd nodes);
 
 } // namespace dgtoolbox
 } // namespace parts
