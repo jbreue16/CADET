@@ -477,61 +477,49 @@ protected:
 		}
 		/**
 		 * @brief calculates the dispersion part of the DG jacobian
-		 * @param [in] exInt true if exact integration DG scheme
-		 * @param [in] cellIdx cell index
+		 * @param [in] parType particle type index
+		 * @param [in] parGeomSurfToVol particle geometry
 		 */
 		Eigen::MatrixXd GSMjacobianParDispBlock(unsigned int parType, double parGeomSurfToVol) {
 
 			MatrixXd dispBlock;
 
-			// Inner dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
+			// We have to match the DGSEM interface, where the dispersion block [ d RHS_disp / d c ] depends on whole previous and subsequent cell plus first entries of subsubsequent cells
 			dispBlock = MatrixXd::Zero(nParNode[parType], 3 * nParNode[parType] + 2);
-			MatrixXd B = getParBMatrix(parType, 1, parGeomSurfToVol); // "Lifting" matrix
 
-			// todo is the slab treated differently for this discretization?
-			// no surface integral contribution here, since that is treated somewhere else?
-
-			if (parGeomSurfToVol != SurfVolRatioSlab) {
-				dispBlock.block(0, nParNode[parType] + 1, nParNode[parType], nParNode[parType]) = minus_parInvMM_Ar[parType];
-				//dispBlock.block(0, nParNode[parType], nParNode[parType], nParNode[parType] + 2) = minus_InvMM_ST[offsetMetric[parType] + (cellIdx - 1)] * gBlock;
-				//dispBlock += parInvMM[offsetMetric[parType] + (cellIdx - 1)] * B * gStarDC;
-			}
-			else {
-				dispBlock.block(0, nParNode[parType] + 1, nParNode[parType], nParNode[parType]) = minus_parInvMM_Ar[parType];
-				//dispBlock.block(0, nParNode[parType], nParNode[parType], nParNode[parType] + 2) = (parPolyDerM[parType] - parInvMM[parType] * B) * gBlock;
-				//dispBlock += parInvMM[parType] * B * gStarDC;
-			}
+			dispBlock.block(0, nParNode[parType] + 1, nParNode[parType], nParNode[parType]) = minus_parInvMM_Ar[parType];
 			dispBlock *= 2.0 / static_cast<double>(deltaR[offsetMetric[parType]]) * 2.0 / static_cast<double>(deltaR[offsetMetric[parType]]);
 
 			return -dispBlock; // *-1 for residual
 		}
 		/**
 		 * @brief calculates the dispersion part of the DG jacobian
-		 * @param [in] exInt true if exact integration DG scheme
 		 * @param [in] cellIdx cell index
+		 * @param [in] parType particle type index
+		 * @param [in] parGeomSurfToVol particle geometry
 		 */
 		Eigen::MatrixXd DGjacobianParDispBlock(unsigned int cellIdx, unsigned int parType, double parGeomSurfToVol) {
 
 			MatrixXd dispBlock;
+			// Inner dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
+			dispBlock = MatrixXd::Zero(nParNode[parType], 3 * nParNode[parType] + 2);
 
-			if (parExactInt[parType]) {
-				// Inner dispersion block [ d RHS_disp / d c ], depends on whole previous and subsequent cell plus first entries of subsubsequent cells
-				dispBlock = MatrixXd::Zero(nParNode[parType], 3 * nParNode[parType] + 2);
+			if (parExactInt[parType])
+			{
 				MatrixXd B = getParBMatrix(parType, cellIdx, parGeomSurfToVol); // "Lifting" matrix
 				MatrixXd gBlock = getParGBlock(cellIdx, parType); // current cell auxiliary block matrix
 				MatrixXd gStarDC = parAuxBlockGstar(cellIdx, parType, getParGBlock(cellIdx - 1, parType), gBlock, getParGBlock(cellIdx + 1, parType)); // Numerical flux block
 
-				if (parGeomSurfToVol != SurfVolRatioSlab) {
+				if (parGeomSurfToVol != SurfVolRatioSlab) // weak form DGSEM required
 					dispBlock.block(0, nParNode[parType], nParNode[parType], nParNode[parType] + 2) = minus_InvMM_ST[offsetMetric[parType] + (cellIdx - 1)] * gBlock;
-					dispBlock += parInvMM[offsetMetric[parType] + (cellIdx - 1)] * B * gStarDC;
-				}
-				else {
-					dispBlock.block(0, nParNode[parType], nParNode[parType], nParNode[parType] + 2) = (parPolyDerM[parType] - parInvMM[parType] * B) * gBlock;
-					dispBlock += parInvMM[parType] * B * gStarDC;
-				}
+				else // strong form DGSEM
+					dispBlock.block(0, nParNode[parType], nParNode[parType], nParNode[parType] + 2) = (parPolyDerM[parType] - parInvMM[offsetMetric[parType] + (cellIdx - 1)] * B) * gBlock;
+				
+				dispBlock += parInvMM[offsetMetric[parType] + (cellIdx - 1)] * B * gStarDC;
 				dispBlock *= 2.0 / static_cast<double>(deltaR[offsetMetric[parType] + (cellIdx - 1)]);
 			}
-			else {
+			else
+			{
 				// inexact integration is not maintained due to inferior performance. Code is in calcParticleCollocationDGSEMJacobian
 			}
 
@@ -902,7 +890,7 @@ protected:
 			// film diffusion BC
 			_surfFluxPar[_disc.nParCell[parType]] = static_cast<StateType>(_disc.localFlux[comp])
 					/ (static_cast<double>(_parPorosity[parType]) * static_cast<double>(_poreAccessFactor[parType * _disc.nComp + comp]))
-				* (2.0 / static_cast<double>(_disc.deltaR[_disc.offsetMetric[parType]])); // inverse squared mapping is also applied, so we apply Map * invMap^2 = invMap
+				* (2.0 / static_cast<double>(_disc.deltaR[_disc.offsetMetric[parType]])); // inverse squared mapping was also applied, so we apply Map * invMap^2 = invMap
 
 			// inner particle BC
 			_surfFluxPar[0] = 0.0;

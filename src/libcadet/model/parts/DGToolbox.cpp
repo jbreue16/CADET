@@ -383,7 +383,7 @@ MatrixXd legVandermondeMatrix(const unsigned int polyDeg, const VectorXd nodes) 
 }
 /**
  * @brief calculates the inverse mass matrix via transformation to orthonormal Jacobi (modal) basis
- * @detail used for exact integration for integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 - \xi)^\alpha (1 + \xi)^\beta d\xi
+ * @detail the mass matrix used to compute integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 - \xi)^\alpha (1 + \xi)^\beta d\xi
  * @param [in] polyDeg polynomial degree
  * @param [in] nodes polynomial interpolation nodes
  */
@@ -392,7 +392,7 @@ Eigen::MatrixXd invMMatrix(const unsigned int polyDeg, const Eigen::VectorXd nod
 }
 /**
  * @brief calculates the mass matrix via transformation to orthonormal Jacobi (modal) basis
- * @detail used for exact integration for integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 - \xi)^\alpha (1 + \xi)^\beta d\xi
+ * @detail mass matrix used to compute integrals of the form \int_E \ell_i(\xi) \ell_j(\xi) (1 - \xi)^\alpha (1 + \xi)^\beta d\xi
  * @param [in] polyDeg polynomial degree
  * @param [in] nodes polynomial interpolation nodes
  */
