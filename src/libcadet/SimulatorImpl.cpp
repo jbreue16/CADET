@@ -216,6 +216,17 @@ namespace cadet
 
 		LOG(Trace) << "==> Residual at t = " << t << " sec = " << secIdx;
 
+		return sim->_model->residual(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res));
+	}
+
+	int jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3)
+	{
+		cadet::Simulator* const sim = static_cast<cadet::Simulator*>(IDA_mem->ida_lmem);
+		const double t = IDA_mem->ida_tn;
+		const unsigned int secIdx = sim->getCurrentSection(t);
+
+		LOG(Trace) << "==> Jacobian at t = " << t;
+
 		return sim->_model->residualWithJacobian(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
 			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
 	}
@@ -448,7 +459,7 @@ namespace cadet
 		IDA_mem->ida_lsolve         = &linearSolveWrapper;
 		IDA_mem->ida_lmem           = this;
 		IDA_mem->ida_linit          = nullptr;
-		IDA_mem->ida_lsetup         = nullptr;
+		IDA_mem->ida_lsetup         = &jacobianUpdateWrapper;
 		IDA_mem->ida_lperf          = nullptr;
 		IDA_mem->ida_lfree          = nullptr;
 //		IDA_mem->ida_efun           = &weightWrapper;
