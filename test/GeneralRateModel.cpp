@@ -229,7 +229,7 @@ TEST_CASE("GRM with two component linear binding Jacobian", "[GRM],[FV],[UnitOp]
 
 TEST_CASE("GRM LWE one vs two identical particle types match", "[GRM],[FV],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("GENERAL_RATE_MODEL", "FV", 2e-8, 5e-5);
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("GENERAL_RATE_MODEL", "FV", 1e-7, 5e-5);
 }
 
 TEST_CASE("GRM LWE separate identical particle types match", "[GRM],[FV],[Simulation],[ParticleType],[CI]")

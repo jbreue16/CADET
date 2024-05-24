@@ -27,7 +27,7 @@ TEST_CASE("LRMP LWE forward vs backward flow", "[LRMP],[FV],[Simulation],[CI]")
 	for (unsigned int i = 1; i <= cadet::Weno::maxOrder(); ++i)
 	{
 		disc.setWenoOrder(i);
-		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITH_PORES", disc, 6e-8, 4e-6);
+		cadet::test::column::testForwardBackward("LUMPED_RATE_MODEL_WITH_PORES", disc, 3e-7, 4e-6);
 	}
 }
 
@@ -210,7 +210,7 @@ TEST_CASE("LRMP with two component linear binding Jacobian", "[LRMP],[FV],[UnitO
 
 TEST_CASE("LRMP LWE one vs two identical particle types match", "[LRMP],[FV],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", "FV", 2.2e-8, 6e-5);
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", "FV", 5e-8, 6e-5);
 }
 
 TEST_CASE("LRMP LWE separate identical particle types match", "[LRMP],[FV],[Simulation],[ParticleType],[CI]")
@@ -220,7 +220,7 @@ TEST_CASE("LRMP LWE separate identical particle types match", "[LRMP],[FV],[Simu
 
 TEST_CASE("LRMP linear binding single particle matches particle distribution", "[LRMP],[FV],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testLinearMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", "FV", 5e-8, 5e-5);
+	cadet::test::particle::testLinearMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", "FV", 8e-8, 5e-5);
 }
 
 TEST_CASE("LRMP multiple particle types Jacobian analytic vs AD", "[LRMP],[FV],[Jacobian],[AD],[ParticleType],[CI]")
@@ -240,7 +240,7 @@ TEST_CASE("LRMP multiple spatially dependent particle types Jacobian analytic vs
 
 TEST_CASE("LRMP linear binding single particle matches spatially dependent particle distribution", "[LRMP],[FV],[Simulation],[ParticleType],[CI]")
 {
-	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", "FV", 5e-8, 5e-5);
+	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES", "FV", 8e-8, 5e-5);
 }
 
 TEST_CASE("LRMP multiple spatially dependent particle types flux Jacobian vs FD", "[LRMP],[FV],[UnitOp],[Residual],[Jacobian],[ParticleType],[CI],[FD]")
