@@ -133,7 +133,7 @@ Group /solver/time_integrator
    
 ``MAX_NEWTON_ITER``
 
-   Maximum number of Newton iterations in time step (optional, defaults to 3)
+   Maximum number of Newton iterations in time step (optional, defaults to 4 (IDAS default))
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -141,7 +141,7 @@ Group /solver/time_integrator
    
 ``MAX_ERRTEST_FAIL``
 
-   Maximum number of local error test failures in time step (optional, defaults to 7)
+   Maximum number of local error test failures in time step (optional, defaults to 10 (IDAS default))
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -149,7 +149,7 @@ Group /solver/time_integrator
    
 ``MAX_CONVTEST_FAIL``
 
-   Maximum number of Newton convergence test failures (optional, defaults to 10)
+   Maximum number of Newton convergence test failures (optional, defaults to 10 (IDAS default))
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
@@ -157,7 +157,7 @@ Group /solver/time_integrator
    
 ``MAX_NEWTON_ITER_SENS``
 
-   Maximum number of Newton iterations in forward sensitivity time step (optional, defaults to 3)
+   Maximum number of Newton iterations in forward sensitivity time step (optional, defaults to 4 (IDAS default))
    
    =============  =========================  =============
    **Type:** int  **Range:** :math:`\geq 0`  **Length:** 1
