@@ -262,6 +262,8 @@ protected:
 	double _maxStepSize; //!< Maximum time step size
 	unsigned int _nThreads; //!< Maximum number of threads CADET is allowed to use 0, disables maximum setting
 
+	bool _modifiedNewton; //!< Determines whether modified or full Newton method is used
+
 	bool _sensErrorTestEnabled; //!< Determines whether forward sensitivity systems participate in the local time integration error test
 	unsigned int _maxNewtonIter; //!< Maximum number of Newton iterations for original DAE system
 	unsigned int _maxErrorTestFail; //!< Maximum number of local time integration error test failures

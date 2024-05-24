@@ -63,6 +63,14 @@ Group /input/solver
 Group /solver/time_integrator
 -----------------------------
 
+``USE_MODIFIED_NEWTON``
+
+   Specifies whether modified or full Newton method should be used (optional, defaults to :math:`1` or, in the case that parameter sensitivities are computed, to :math:`0`)
+   
+   =============  ===========================  =============
+   **Type:** int  **Range:** :math:`\{0, 1\}`  **Length:** 1
+   =============  ===========================  =============
+
 ``ABSTOL``
 
    Absolute tolerance in the solution of the original system
