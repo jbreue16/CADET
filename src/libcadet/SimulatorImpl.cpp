@@ -216,7 +216,11 @@ namespace cadet
 
 		LOG(Trace) << "==> Residual at t = " << t << " sec = " << secIdx;
 
-		return sim->_model->residual(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res));
+		if (sim->_modifiedNewton)
+			return sim->_model->residual(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res));
+
+		return sim->_model->residualWithJacobian(cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
+			cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()});
 	}
 
 	int jacobianUpdateWrapper(IDAMem IDA_mem, N_Vector y, N_Vector yDot, N_Vector res, N_Vector tempv1, N_Vector tempv2, N_Vector tempv3)
@@ -346,6 +350,12 @@ namespace cadet
 		reinterpret_cast<cadet::model::ModelSystem*>(sim->_model)->genJacobian(ns, t, NVEC_DATA(y), NVEC_DATA(yDot), NVEC_DATA(res),
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
 */
+
+		if (sim->_modifiedNewton)
+		{
+			return sim->_model->residualSensFwdWithJacobian(ns, cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
+				sensY, sensYdot, sensRes, cadet::AdJacobianParams{sim->_vecADres, sim->_vecADy, sim->numSensitivityAdDirections()}, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
+		}
 
 		return sim->_model->residualSensFwd(ns, cadet::SimulationTime{t, secIdx}, cadet::ConstSimulationState{NVEC_DATA(y), NVEC_DATA(yDot)}, NVEC_DATA(res),
 			sensY, sensYdot, sensRes, sim->_vecADres, NVEC_DATA(tmp1), NVEC_DATA(tmp2), NVEC_DATA(tmp3));
@@ -1517,6 +1527,7 @@ namespace cadet
 			_consistentInitModeSens = toConsistentInitialization(paramProvider.getInt("CONSISTENT_INIT_MODE_SENS"));
 
 		// Newton method defaults to full Newton if parameter sensitivities are specified
+/*
 		if (!modifiedNewtonSetByUser)
 		{
 			paramProvider.popScope();
@@ -1529,7 +1540,7 @@ namespace cadet
 			}
 			paramProvider.pushScope("solver");
 		}
-
+*/
 		// @todo: Read more configuration values
 	}
 
