@@ -58,20 +58,10 @@ namespace
 	public:
 		static inline void call(cadet::IModel* const model, ConvDispOperator& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
 		{
-			op.residual(*model, t, secIdx, y, yDot, res, jac);
+			//op.residual(*model, t, secIdx, y, yDot, res, jac);
+			op.jacobian(*model, t, secIdx, y, yDot, res, jac);
 		}
 	};
-
-	//template <typename ConvDispOperator, typename ResidualType, typename ParamType>
-	//class ConvOpJac<ConvDispOperator, active, ResidualType, ParamType>
-	//{
-	//public:
-	//	static inline void call(cadet::IModel* const model, ConvDispOperator& op, double t, unsigned int secIdx, double const* const y, double const* const yDot, ResidualType* const res, cadet::linalg::BandMatrix& jac)
-	//	{
-	//		// This should not be reached
-	//		cadet_assert(false);
-	//	}
-	//};
 
 	template <typename ConvDispOperator, typename StateType, typename ResidualType, typename ParamType, bool wantJac>
 	class ConvOpResidual
