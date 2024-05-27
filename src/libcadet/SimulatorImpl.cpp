@@ -1457,12 +1457,8 @@ namespace cadet
 	{
 		paramProvider.pushScope("time_integrator");
 
-		bool modifiedNewtonSetByUser = false;
 		if (paramProvider.exists("USE_MODIFIED_NEWTON"))
-		{
 			_modifiedNewton = paramProvider.getBool("USE_MODIFIED_NEWTON");
-			modifiedNewtonSetByUser = true;
-		}
 		else
 			_modifiedNewton = true;
 
@@ -1526,21 +1522,6 @@ namespace cadet
 		if (paramProvider.exists("CONSISTENT_INIT_MODE_SENS"))
 			_consistentInitModeSens = toConsistentInitialization(paramProvider.getInt("CONSISTENT_INIT_MODE_SENS"));
 
-		// Newton method defaults to full Newton if parameter sensitivities are specified
-/*
-		if (!modifiedNewtonSetByUser)
-		{
-			paramProvider.popScope();
-			if (paramProvider.exists("sensitivities"))
-			{
-				paramProvider.pushScope("sensitivities");
-				paramProvider.exists("NSENS");
-				_modifiedNewton = paramProvider.getInt("NSENS") == 0;
-				paramProvider.popScope();
-			}
-			paramProvider.pushScope("solver");
-		}
-*/
 		// @todo: Read more configuration values
 	}
 
