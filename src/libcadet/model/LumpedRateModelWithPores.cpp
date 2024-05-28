@@ -1039,7 +1039,7 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 
 	// Go to the particle block of the given type and column cell
 	StateType const* y = yBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
-	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell});
+	double const* yDot = yDotBase ? yDotBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell}) : nullptr;
 	ResidualType* res = wantRes ? resBase + idxr.offsetCp(ParticleTypeIndex{parType}, ParticleIndex{colCell}) : nullptr;
 
 	// Prepare parameters
@@ -1064,12 +1064,12 @@ int LumpedRateModelWithPores<ConvDispOperator>::residualParticle(double t, unsig
 	// Handle time derivatives, binding, dynamic reactions
 	if (wantRes)
 		parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, true>(
-			t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, yDotBase ? yDot : nullptr, res,
+			t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, yDot, res,
 			_jacP[parType].row(colCell * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
 		);
 	else
 		parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandMatrix::RowIterator, wantJac, false, false>(
-			t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, yDotBase ? yDot : nullptr, res,
+			t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, yDot, res,
 			_jacP[parType].row(colCell * idxr.strideParBlock(parType)), cellResParams, threadLocalMem.get()
 		);
 
