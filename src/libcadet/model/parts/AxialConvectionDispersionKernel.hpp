@@ -320,7 +320,7 @@ namespace impl
 							jac[(wenoOrder - i) * p.strideCell] += static_cast<double>(p.u) / static_cast<double>(p.h) * p.wenoDerivatives[i];
 					}
 				}
-				else
+				else if (wantRes)
 				{
 					// In the last cell (z = L) we need to apply the boundary condition: inflow concentration
 					resBulkComp[col * p.strideCell] += p.u / p.h * y[p.offsetToInlet + comp];
