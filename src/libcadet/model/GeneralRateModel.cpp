@@ -1108,7 +1108,7 @@ int GeneralRateModel<ConvDispOperator>::residual(const SimulationTime& simTime, 
 }
 
 template <typename ConvDispOperator>
-int GeneralRateModel<typename ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int GeneralRateModel<ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 

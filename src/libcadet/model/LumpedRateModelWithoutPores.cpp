@@ -506,7 +506,7 @@ void LumpedRateModelWithoutPores<ConvDispOperator>::checkAnalyticJacobianAgainst
 #endif
 
 template <typename ConvDispOperator>
-int LumpedRateModelWithoutPores<typename ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
+int LumpedRateModelWithoutPores<ConvDispOperator>::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
 
