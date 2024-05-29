@@ -1272,15 +1272,18 @@ int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType co
 		resi.setZero();
 	}
 
-	if (wantJac && _disc.newStaticJac) {
+	if (wantJac)
+	{
+		if (!wantRes || _disc.newStaticJac)
+		{
+			// estimate new static (per section) jacobian
+			bool success = calcStaticAnaJacobian_GRM(secIdx);
 
-		// estimate new static (per section) jacobian
-		bool success = calcStaticAnaJacobian_GRM(secIdx);
+			_disc.newStaticJac = false;
 
-		_disc.newStaticJac = false;
-
-		if (cadet_unlikely(!success)) {
-			LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
+			if (cadet_unlikely(!success)) {
+				LOG(Error) << "Jacobian pattern did not fit the Jacobian estimation";
+			}
 		}
 	}
 

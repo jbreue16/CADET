@@ -1002,7 +1002,7 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 
 	if (wantJac)
 	{
-		if (_disc.newStaticJac) // static (per section) transport Jacobian
+		if (!wantRes || _disc.newStaticJac) // static (per section) transport Jacobian
 		{
 			success = calcStaticAnaGlobalJacobian(secIdx);
 			_disc.newStaticJac = false;

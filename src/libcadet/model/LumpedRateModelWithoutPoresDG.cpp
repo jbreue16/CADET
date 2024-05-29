@@ -347,6 +347,8 @@ namespace cadet
 
 		void LumpedRateModelWithoutPoresDG::notifyDiscontinuousSectionTransition(double t, unsigned int secIdx, const ConstSimulationState& simState, const AdJacobianParams& adJac)
 		{
+			// TODO: reset pattern every time section?
+
 			Indexer idxr(_disc);
 
 			// ConvectionDispersionOperator tells us whether flow direction has changed
@@ -603,12 +605,8 @@ namespace cadet
 
 			if (wantJac) {
 
-				if (_disc.newStaticJac) { // static part of jacobian only needs to be updated at new sections
+				if (!wantRes || _disc.newStaticJac) {
 
-					// TODO: reset pattern every time section?
-					//setPattern(_jacDisc, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
-					//setPattern(_jac, true, _dynReaction[0] && (_dynReaction[0]->numReactionsCombined() > 0));
-					//success = calcStaticAnaJacobian();
 					success = _convDispOp.calcStaticAnaJacobian(_jac, _jacInlet);
 
 					_disc.newStaticJac = false;
