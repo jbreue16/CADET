@@ -862,11 +862,15 @@ void LumpedRateModelWithPoresDG::checkAnalyticJacobianAgainstAd(active const* co
 int LumpedRateModelWithPoresDG::jacobian(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, const AdJacobianParams& adJac, util::ThreadLocalStorage& threadLocalMem)
 {
 	BENCH_SCOPE(_timerResidual);
-	// todo residualimpl that only computes the jacobian
+
 	if (_analyticJac)
-		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+	{
+		_factorizeJacobian = true;
+
+		return residualImpl<double, double, double, true, false>(simTime.t, simTime.secIdx, simState.vecStateY, simState.vecStateYdot, res, threadLocalMem);
+	}
 	else
-		return residual(simTime, simState, res, adJac, threadLocalMem, true, false);
+		return residualWithJacobian(simTime, ConstSimulationState{ simState.vecStateY, nullptr }, nullptr, adJac, threadLocalMem);
 }
 
 int LumpedRateModelWithPoresDG::residual(const SimulationTime& simTime, const ConstSimulationState& simState, double* const res, util::ThreadLocalStorage& threadLocalMem)
@@ -989,7 +993,7 @@ int LumpedRateModelWithPoresDG::residual(const SimulationTime& simTime, const Co
 	}
 }
 
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
 	// check for section switch
@@ -1021,6 +1025,9 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 
 	BENCH_STOP(_timerResidualPar);
 
+	if (!wantRes)
+		return 0;
+
 	residualFlux<StateType, ResidualType, ParamType>(t, secIdx, y, yDot, res);
 
 	// Handle inlet DOFs, which are simply copied to res
@@ -1032,19 +1039,34 @@ int LumpedRateModelWithPoresDG::residualImpl(double t, unsigned int secIdx, Stat
 	return 0;
 }
 
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int LumpedRateModelWithPoresDG::residualBulk(double t, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
-	_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, typename cadet::ParamSens<ParamType>::enabled());
+	if (wantRes)
+		_convDispOp.residual(*this, t, secIdx, yBase, yDotBase, resBase, typename cadet::ParamSens<ParamType>::enabled());
 
 	if (!_dynReactionBulk || (_dynReactionBulk->numReactionsLiquid() == 0))
 		return 0;
 
-	// Get offsets
 	Indexer idxr(_disc);
 	StateType const* y = yBase + idxr.offsetC();
-	ResidualType* res = resBase + idxr.offsetC();
 	LinearBufferAllocator tlmAlloc = threadLocalMem.get();
+
+	if (!wantRes) // only compute Jacobian
+	{
+		for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode())
+		{
+			const ColumnPosition colPos{ (0.5 + static_cast<double>(col)) / static_cast<double>(_disc.nCol), 0.0, 0.0 };
+
+			linalg::BandedEigenSparseRowIterator jac(_globalJacDisc, col * idxr.strideColNode());
+			// static_cast should be sufficient here, but this statement is also analyzed when wantJac = false
+			_dynReactionBulk->analyticJacobianLiquidAdd(t, secIdx, colPos, reinterpret_cast<double const*>(y), -1.0, jac, tlmAlloc);
+		}
+
+		return 0;
+	}
+
+	ResidualType* res = resBase + idxr.offsetC();
 
 	for (unsigned int col = 0; col < _disc.nPoints; ++col, y += idxr.strideColNode(), res += idxr.strideColNode())
 	{
@@ -1062,15 +1084,13 @@ int LumpedRateModelWithPoresDG::residualBulk(double t, unsigned int secIdx, Stat
 	return 0;
 }
 
-template <typename StateType, typename ResidualType, typename ParamType, bool wantJac>
+template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int LumpedRateModelWithPoresDG::residualParticle(double t, unsigned int parType, unsigned int colNode, unsigned int secIdx, StateType const* yBase, double const* yDotBase, ResidualType* resBase, util::ThreadLocalStorage& threadLocalMem)
 {
 	Indexer idxr(_disc);
 
 	// Go to the particle block of the given type and column cell
 	StateType const* y = yBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
-	double const* yDot = yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
-	ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
 
 	// Prepare parameters
 	const ParamType radius = static_cast<ParamType>(_parRadius[parType]);
@@ -1094,10 +1114,23 @@ int LumpedRateModelWithPoresDG::residualParticle(double t, unsigned int parType,
 	linalg::BandedEigenSparseRowIterator jac(_globalJac, idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) - idxr.offsetC());
 
 	// Handle time derivatives, binding, dynamic reactions
-	parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
-		t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, yDotBase ? yDot : nullptr, res,
-		jac, cellResParams, threadLocalMem.get()
+	if (wantRes)
+	{
+		double const* yDot = yDotBase ? yDotBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode }) : nullptr;
+		ResidualType* res = resBase + idxr.offsetCp(ParticleTypeIndex{ parType }, ParticleIndex{ colNode });
+
+		parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, true>(
+			t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, yDot, res,
+			jac, cellResParams, threadLocalMem.get()
 		);
+	}
+	else
+	{
+		parts::cell::residualKernel<StateType, ResidualType, ParamType, parts::cell::CellParameters, linalg::BandedEigenSparseRowIterator, wantJac, false, false>(
+			t, secIdx, ColumnPosition{ z, 0.0, static_cast<double>(radius) * 0.5 }, y, nullptr, nullptr,
+			jac, cellResParams, threadLocalMem.get()
+		);
+	}
 
 	return 0;
 }
