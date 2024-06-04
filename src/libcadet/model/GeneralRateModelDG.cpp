@@ -962,7 +962,9 @@ void GeneralRateModelDG::notifyDiscontinuousSectionTransition(double t, unsigned
 
 	_convDispOp.notifyDiscontinuousSectionTransition(t, secIdx, _jacInlet);
 
-	updateSection(secIdx);
+	_disc.curSection = secIdx;
+	_disc.newStaticJac = true;
+
 	_disc.initializeDGjac(_parGeomSurfToVol);
 }
 
@@ -1261,10 +1263,6 @@ int GeneralRateModelDG::residual(const SimulationTime& simTime, const ConstSimul
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int GeneralRateModelDG::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	
-	// determine wether we have a section switch. If so, set velocity, dispersion, newStaticJac
-	updateSection(secIdx);
-
 	if (wantRes)
 	{
 		double* const resPtr = reinterpret_cast<double* const>(res);

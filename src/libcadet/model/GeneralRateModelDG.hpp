@@ -750,17 +750,6 @@ protected:
 		double const* const _data;
 	};
 
-	/**
-	* @brief sets the current section index and loads section dependend velocity, dispersion
-	*/
-	void updateSection(int secIdx) {
-
-		if (cadet_unlikely(_disc.curSection != secIdx)) {
-			_disc.curSection = secIdx;
-			_disc.newStaticJac = true;
-		}
-	}
-
 // ===========================================================================================================================================================  //
 // ========================================			DG functions to compute particle discretization			==================================================  //
 // ===========================================================================================================================================================  //
