@@ -19,7 +19,7 @@
 #include "JsonTestModels.hpp"
 
 
-TEST_CASE("LRMP2D inlet DOF Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CI]")
+TEST_CASE("LRMP2D inlet DOF Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[testHere]")
 {
 	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
 }
@@ -55,7 +55,7 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	jpp.popScope();
 	jpp.pushScope("unit_" + unitID);
 
-	for (int zElem = 1; zElem < 8; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the autodiff.hpp
+	for (int zElem = 1; zElem < 8; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the cmake build options
 	{
 		for (int rElem = 1; rElem < 8; rElem++)
 		{
