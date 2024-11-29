@@ -73,19 +73,8 @@
         },
       "unit_000": {
         "ADSORPTION_MODEL": [
-          "LINEAR"
+          "NONE"
         ],
-        "adsorption": {
-          "IS_KINETIC": 1,
-          "LIN_KA": [
-            0.1,
-            0.2
-          ],
-          "LIN_KD": [
-            0.05,
-            0.1
-          ]
-        },
         "COL_DISPERSION": 0.1,
         "COL_DISPERSION_RADIAL": 0.2,
         "COL_LENGTH": 0.014,

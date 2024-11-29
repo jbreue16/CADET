@@ -29,9 +29,9 @@ TEST_CASE("LRMP2D time derivative Jacobian vs FD", "[LRMP2D],[DG],[DG2D],[UnitOp
 	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-6, 0.0, 9e-4);
 }
 
-TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[testHere]")
+TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CILRMP2D]")
 {
-	const std::string relModelFilePath = std::string("/data/lrmp2d_bulkTransport_2comp_debug.json");
+	const std::string relModelFilePath = std::string("/data/lrmp2d_bulkTransport_1comp_debug.json");
 	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
 
 	// get the number of radial ports
@@ -55,9 +55,9 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	jpp.popScope();
 	jpp.pushScope("unit_" + unitID);
 
-	for (int zElem = 1; zElem < 4; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the cmake build options
+	for (int zElem = 1; zElem < 8; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the cmake build options
 	{
-		for (int rElem = 1; rElem < 3; rElem++)
+		for (int rElem = 1; rElem < 8; rElem++)
 		{
 			jpp.pushScope("discretization");
 			jpp.set("AX_NELEM", zElem);
@@ -70,9 +70,9 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	}
 }
 
-TEST_CASE("LRMP2D full Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[todo]")
+TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CILRMP2D]")
 {
-	const std::string relModelFilePath = std::string("/data/lrmp2d_2comp_debug.json");
+	const std::string relModelFilePath = std::string("/data/lrmp2d_dynLin_2comp_debug.json");
 	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
 
 	// get the number of radial ports
@@ -94,8 +94,21 @@ TEST_CASE("LRMP2D full Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[tod
 
 	jpp.popScope();
 	jpp.popScope();
+	jpp.pushScope("unit_" + unitID);
 
-	cadet::test::column::testJacobianAD(jpp, 1e10, std::numeric_limits<float>::epsilon() * 100.0, &flowRate[0]); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
+	for (int zElem = 1; zElem < 8; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the cmake build options
+	{
+		for (int rElem = 1; rElem < 8; rElem++)
+		{
+			jpp.pushScope("discretization");
+			jpp.set("AX_NELEM", zElem);
+			jpp.set("RAD_NELEM", rElem);
+
+			jpp.popScope();
+
+			cadet::test::column::testJacobianAD(jpp, 1e10, std::numeric_limits<float>::epsilon() * 100.0, &flowRate[0]); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
+		}
+	}
 }
 
 TEST_CASE("LRMP2D sensitivity Jacobians", "[LRMP2D],[UnitOp],[Sensitivity],[CILRMP2D]")
