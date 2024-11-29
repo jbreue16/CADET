@@ -571,16 +571,17 @@ bool LumpedRateModelWithPoresDG2D::configureModelDiscretization(IParameterProvid
 		}
 	}
 
-	// Setup the memory for tempState based on state vector
+	// Setup the memory for tempState and Jacobians
 	if (firstConfig)
+	{
 	_tempState = new double[numDofs()];
-
-	// Allocate Jacobian memory; pattern will be set and analyzed in configure()
 	_jacInlet.resize(_convDispOp.axNNodes() * _disc.radNPoints * _disc.nComp, _disc.radNPoints * _disc.nComp);
-	_jacInlet.setZero();
-
+		// Allocate Jacobian memory; pattern will be set and analyzed in configure()
 	_globalJac.resize(numPureDofs(), numPureDofs());
 	_globalJacDisc.resize(numPureDofs(), numPureDofs());
+	}
+
+	_jacInlet.setZero();
 
 	return transportSuccess && bindingConfSuccess && reactionConfSuccess;
 }

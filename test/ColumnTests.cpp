@@ -836,7 +836,7 @@ namespace column
 
 	void testJacobianAD(cadet::JsonParameterProvider& jpp, const double absTolFDpattern, const double absTolAD, const active* flowRate)
 	{
-		cadet::ad::setDirections(cadet::ad::getMaxDirections()); // AD directions needed in createAndConfigureUnit but requiredADdirs not know before configureModelDiscretization (which is called in configureUnit)
+		cadet::ad::setDirections(cadet::ad::getMaxDirections()); // AD directions needed in createAndConfigureUnit but requiredADdirs not known before configureModelDiscretization (which is called in configureUnit)
 
 		cadet::IModelBuilder* const mb = cadet::createModelBuilder();
 		REQUIRE(nullptr != mb);

@@ -454,13 +454,25 @@ namespace parts
 /**
  * @brief Creates a TwoDimensionalConvectionDispersionOperatorDG
  */
-TwoDimensionalConvectionDispersionOperatorDG::TwoDimensionalConvectionDispersionOperatorDG() : _colPorosities(0), _dir(0), _dispersionDep(nullptr)
+TwoDimensionalConvectionDispersionOperatorDG::TwoDimensionalConvectionDispersionOperatorDG() : _colPorosities(0), _dir(0), _dispersionDep(nullptr),
+_radLiftMCyl(nullptr), _transMrCyl(nullptr), _invTransMrCyl(nullptr), _transTildeMr(nullptr), _transTildeMrDash(nullptr), _transTildeSrDash(nullptr),
+_SrCyl(nullptr), _jacConvection(nullptr), _jacAxDispersion(nullptr), _jacRadDispersion(nullptr)
 {
 }
 
 TwoDimensionalConvectionDispersionOperatorDG::~TwoDimensionalConvectionDispersionOperatorDG() CADET_NOEXCEPT
 {
 	delete _dispersionDep;
+	delete[] _radLiftMCyl;
+	delete[] _transMrCyl;
+	delete[] _invTransMrCyl;
+	delete[] _transTildeMr;
+	delete[] _transTildeMrDash;
+	delete[] _transTildeSrDash;
+	delete[] _SrCyl;
+	delete[] _jacConvection;
+	delete[] _jacAxDispersion;
+	delete[] _jacRadDispersion;
 }
 
 MatrixXd TwoDimensionalConvectionDispersionOperatorDG::calcTildeMr(const unsigned int elemIdx, const active* const dispersion)
