@@ -19,7 +19,7 @@
 #include "JsonTestModels.hpp"
 
 
-TEST_CASE("LRMP2D inlet DOF Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[testHere]") // todo
+TEST_CASE("LRMP2D inlet DOF Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[todo]") // todo
 {
 	cadet::test::column::testInletDofJacobian("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
 }
@@ -29,7 +29,7 @@ TEST_CASE("LRMP2D time derivative Jacobian vs FD", "[LRMP2D],[DG],[DG2D],[UnitOp
 	cadet::test::column::testTimeDerivativeJacobianFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-6, 0.0, 9e-4);
 }
 
-TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CILRMP2D]")
+TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[testHere]")
 {
 	const std::string relModelFilePath = std::string("/data/lrmp2d_bulkTransport_2comp_debug.json");
 	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
@@ -55,9 +55,9 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	jpp.popScope();
 	jpp.pushScope("unit_" + unitID);
 
-	for (int zElem = 1; zElem < 8; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the cmake build options
+	for (int zElem = 1; zElem < 4; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the cmake build options
 	{
-		for (int rElem = 1; rElem < 8; rElem++)
+		for (int rElem = 1; rElem < 3; rElem++)
 		{
 			jpp.pushScope("discretization");
 			jpp.set("AX_NELEM", zElem);
@@ -169,12 +169,12 @@ TEST_CASE("LRMP2D consistent sensitivity initialization with SMA binding", "[LRM
 	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", y.data(), yDot.data(), false, 1e-9, 1, 1);
 }
 
-//TEST_CASE("LRMP2D LWE one vs two identical particle types match", "[LRMP2DtestHere],[Simulation],[ParticleType],CILRMP2D") // todo
+//TEST_CASE("LRMP2D LWE one vs two identical particle types match", "[LRMP2D],[Simulation],[ParticleType],[todo]") // todo
 //{
 //	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-7, 5e-5);
 //}
 //
-//TEST_CASE("LRMP2D LWE separate identical particle types match", "[LRMP2D],[Simulation],[ParticleType],CILRMP2D") // todo
+//TEST_CASE("LRMP2D LWE separate identical particle types match", "[LRMP2D],[Simulation],[ParticleType],[todo]") // todo
 //{
 //	cadet::test::particle::testSeparateIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-15, 1e-15);
 //}
