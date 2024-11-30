@@ -73,8 +73,13 @@
     },
     "unit_000": {
       "ADSORPTION_MODEL": [
-        "NONE"
+        "LINEAR"
       ],
+      "adsorption": {
+        "LIN_KA": [ 2.0, 3.0 ],
+        "LIN_KD": [ 1.0, 0.5 ],
+        "IS_KINETIC": [ 1, 0 ]
+      },
       "COL_DISPERSION": [
         1e-08,
         1e-08
@@ -104,8 +109,8 @@
         0
       ],
       "NBOUND": [
-        0,
-        0
+        1,
+        1
       ],
       "NCOMP": 2,
       "NPARTYPE": 1,

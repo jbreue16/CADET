@@ -55,7 +55,10 @@ TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian]
 	jpp.popScope();
 	jpp.pushScope("unit_" + unitID);
 
-	for (int zElem = 1; zElem < 8; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the cmake build options
+	// This test might run out of memory due to the required AD directions:
+	// (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
+	// result here is 588 pure dofs (21axPoints*14radPoints) * (1 + 1)
+	for (int zElem = 1; zElem < 8; zElem++)
 	{
 		for (int rElem = 1; rElem < 8; rElem++)
 		{
@@ -96,9 +99,12 @@ TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[D
 	jpp.popScope();
 	jpp.pushScope("unit_" + unitID);
 
-	for (int zElem = 1; zElem < 8; zElem++) // to run this test for fine discretizations, change the number of allowed AD directions in the cmake build options
+	// This test might run out of memory due to the required AD directions:
+	// (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
+	// result here is 1296 pure dofs (18axPoints*12radPoints) * (2 + 4)
+	for (int zElem = 1; zElem < 7; zElem++)
 	{
-		for (int rElem = 1; rElem < 8; rElem++)
+		for (int rElem = 1; rElem < 7; rElem++)
 		{
 			jpp.pushScope("discretization");
 			jpp.set("AX_NELEM", zElem);
