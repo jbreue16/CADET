@@ -124,8 +124,7 @@ TEST_CASE("LRMP2D sensitivity Jacobians", "[LRMP2D],[UnitOp],[Sensitivity],[CILR
 	cadet::test::column::testFwdSensJacobians(jpp, 1e-4, 6e-7);
 }
 
-// todo consistent init
-TEST_CASE("LRMP2D consistent initialization with linear binding", "[LRMP2D],[ConsistentInit],[todo]")
+TEST_CASE("LRMP2D consistent initialization with linear binding", "[LRMP2D],[ConsistentInit],[CILRMP2D]")
 {
 	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-12, 1e-12, 0, 0);
 	cadet::test::column::testConsistentInitializationLinearBinding("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-12, 1e-12, 1, 0);

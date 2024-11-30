@@ -938,7 +938,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialTimeDerivative(const Simulat
 
 			// Get iterators to beginning of solid phase
 			linalg::BandedEigenSparseRowIterator jacSolidOrig(_globalJac, idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ blk }) - idxr.offsetC() + static_cast<unsigned int>(idxr.strideParLiquid()));
-			linalg::BandedEigenSparseRowIterator jacSolid = jac - idxr.strideParBound(type);
+			linalg::BandedEigenSparseRowIterator jacSolid(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ blk }) - idxr.offsetC() + static_cast<unsigned int>(idxr.strideParLiquid()));
 
 			int const* const mask = _binding[type]->reactionQuasiStationarity();
 			double* const qShellDot = vecStateYdot + idxr.offsetCp(ParticleTypeIndex{ type }, ParticleIndex{ blk }) + idxr.strideParLiquid();
@@ -1277,7 +1277,7 @@ void LumpedRateModelWithPoresDG2D::consistentInitialSensitivity(const Simulation
 				{
 					// Get iterators to beginning of solid phase
 					linalg::BandedEigenSparseRowIterator jacSolidOrig(_globalJac, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ pblk }) - idxr.offsetC() + idxr.strideParLiquid());
-					linalg::BandedEigenSparseRowIterator jacSolid = jacPar - idxr.strideParBound(type);
+					linalg::BandedEigenSparseRowIterator jacSolid(_globalJacDisc, idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ pblk }) - idxr.offsetC() + idxr.strideParLiquid());
 
 					int const* const mask = _binding[type]->reactionQuasiStationarity();
 					double* const qShellDot = sensYdot + idxr.offsetCp(ParticleTypeIndex{ static_cast<unsigned int>(type) }, ParticleIndex{ pblk }) + idxr.strideParLiquid();
