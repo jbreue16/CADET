@@ -18,6 +18,49 @@
 #include "Utils.hpp"
 #include "JsonTestModels.hpp"
 
+void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem, const int maxRadElem, const int axPolyDeg = 0, const int radPolyDeg = 0)
+{
+	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
+
+	// get the number of radial ports
+	jpp.pushScope("model");
+	const int nUnits = jpp.getInt("NUNITS"); // there is one column and (nUnits-1) inlets, one per radial port
+	const int columnIdx = 0;
+	const std::string unitID = "000";
+	const int nRad = nUnits - 1; // number of radial points or ports
+
+	// we need to set flowRates for 2D models for the JacobianAD test, since velocity is only set with a call to the setFlowRate function,
+	// which in turn is only called if we specify flow rates. We get the flow rates from the connections matrix
+	jpp.pushScope("connections");
+	jpp.pushScope("switch_000");
+
+	const std::vector<double> connections = jpp.getDoubleArray("CONNECTIONS");
+	std::vector<cadet::active> flowRate;
+	for (int i = 1; i <= nRad; i++)
+		flowRate.push_back(connections[i * 7 - 1]);
+
+	jpp.popScope();
+	jpp.popScope();
+	jpp.pushScope("unit_" + unitID);
+	jpp.pushScope("discretization");
+	if (axPolyDeg > 0)
+		jpp.set("AX_POLYDEG", axPolyDeg);
+	if (radPolyDeg > 0)
+		jpp.set("RAD_POLYDEG", radPolyDeg);
+
+	// This test might run out of memory due to the required AD directions:
+	// (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
+	for (int zElem = 1; zElem <= maxAxElem; zElem++)
+	{
+		for (int rElem = 1; rElem <= maxRadElem; rElem++)
+		{
+			jpp.set("AX_NELEM", zElem);
+			jpp.set("RAD_NELEM", rElem);
+
+			cadet::test::column::testJacobianAD(jpp, 1e10, std::numeric_limits<float>::epsilon() * 100.0, &flowRate[0]); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
+		}
+	}
+}
 
 TEST_CASE("LRMP2D inlet DOF Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[Inlet],[CILRMP2D]")
 {
@@ -32,89 +75,31 @@ TEST_CASE("LRMP2D time derivative Jacobian vs FD", "[LRMP2D],[DG],[DG2D],[UnitOp
 TEST_CASE("LRMP2D transport Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CILRMP2D]")
 {
 	const std::string relModelFilePath = std::string("/data/lrmp2d_bulkTransport_1comp_debug.json");
-	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
 
-	// get the number of radial ports
-	jpp.pushScope("model");
-	const int nUnits = jpp.getInt("NUNITS"); // there is one column and (nUnits-1) inlets, one per radial port
-	const int columnIdx = 0;
-	const std::string unitID = "000";
-	const int nRad = nUnits - 1; // number of radial points or ports
+	// This test might run out of memory due to the required AD directions:
+	// (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
+	// result here is 128 pure dofs (8axPoints*8radPoints) * (1 + 1)
+	test2DLRMPJacobian(relModelFilePath, 4, 4, 1, 1);
+}
 
-	// we need to set flowRates for 2D models for the JacobianAD test, since velocity is only set with a call to the setFlowRate function,
-	// which in turn is only called if we specify flow rates. We get the flow rates from the connections matrix
-	jpp.pushScope("connections");
-	jpp.pushScope("switch_000");
-
-	const std::vector<double> connections = jpp.getDoubleArray("CONNECTIONS");
-	std::vector<cadet::active> flowRate;
-	for (int i = 1; i <= nRad; i++)
-		flowRate.push_back(connections[i * 7 - 1]);
-
-	jpp.popScope();
-	jpp.popScope();
-	jpp.pushScope("unit_" + unitID);
+TEST_CASE("LRMP2D transport Jacobian, full test", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CILRMP2D],[ReleaseCI]")
+{
+	const std::string relModelFilePath = std::string("/data/lrmp2d_bulkTransport_1comp_debug.json");
 
 	// This test might run out of memory due to the required AD directions:
 	// (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// result here is 588 pure dofs (21axPoints*14radPoints) * (1 + 1)
-	for (int zElem = 1; zElem < 8; zElem++)
-	{
-		for (int rElem = 1; rElem < 8; rElem++)
-		{
-			jpp.pushScope("discretization");
-			jpp.set("AX_NELEM", zElem);
-			jpp.set("RAD_NELEM", rElem);
-
-			jpp.popScope();
-
-			cadet::test::column::testJacobianAD(jpp, 1e10, std::numeric_limits<float>::epsilon() * 100.0, &flowRate[0]); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
-		}
-	}
+	test2DLRMPJacobian(relModelFilePath, 7, 7, 2, 1);
 }
 
-TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CILRMP2D]")
-{
+TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CILRMP2D],[ReleaseCI]")
+		{
 	const std::string relModelFilePath = std::string("/data/lrmp2d_dynLin_2comp_debug.json");
-	cadet::JsonParameterProvider jpp = cadet::test::column::getReferenceFile(relModelFilePath);
-
-	// get the number of radial ports
-	jpp.pushScope("model");
-	const int nUnits = jpp.getInt("NUNITS"); // there is one column and (nUnits-1) inlets, one per radial port
-	const int columnIdx = 0;
-	const std::string unitID = "000";
-	const int nRad = nUnits - 1; // number of radial points or ports
-
-	// we need to set flowRates for 2D models for the JacobianAD test, since velocity is only set with a call to the setFlowRate function,
-	// which in turn is only called if we specify flow rates. We get the flow rates from the connections matrix
-	jpp.pushScope("connections");
-	jpp.pushScope("switch_000");
-
-	const std::vector<double> connections = jpp.getDoubleArray("CONNECTIONS");
-	std::vector<cadet::active> flowRate;
-	for (int i = 1; i <= nRad; i++)
-		flowRate.push_back(connections[i * 7 - 1]);
-
-	jpp.popScope();
-	jpp.popScope();
-	jpp.pushScope("unit_" + unitID);
 
 	// This test might run out of memory due to the required AD directions:
 	// (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
 	// result here is 1296 pure dofs (18axPoints*12radPoints) * (2 + 4)
-	for (int zElem = 1; zElem < 7; zElem++)
-	{
-		for (int rElem = 1; rElem < 7; rElem++)
-		{
-			jpp.pushScope("discretization");
-			jpp.set("AX_NELEM", zElem);
-			jpp.set("RAD_NELEM", rElem);
-
-			jpp.popScope();
-
-			cadet::test::column::testJacobianAD(jpp, 1e10, std::numeric_limits<float>::epsilon() * 100.0, &flowRate[0]); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
-		}
-	}
+	test2DLRMPJacobian(relModelFilePath, 7, 7, 2, 1);
 }
 
 TEST_CASE("LRMP2D sensitivity Jacobians", "[LRMP2D],[UnitOp],[Sensitivity],[CILRMP2D]")
