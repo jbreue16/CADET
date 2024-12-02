@@ -47,6 +47,7 @@ void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem,
 		jpp.set("AX_POLYDEG", axPolyDeg);
 	if (radPolyDeg > 0)
 		jpp.set("RAD_POLYDEG", radPolyDeg);
+	jpp.popScope();
 
 	// This test might run out of memory due to the required AD directions:
 	// (axPolyDeg + 1) * axNElem * (radPolyDeg + 1) * radNElem * (nComp + nParType * (nComp + nBound))
@@ -54,8 +55,10 @@ void test2DLRMPJacobian(const std::string relModelFilePath, const int maxAxElem,
 	{
 		for (int rElem = 1; rElem <= maxRadElem; rElem++)
 		{
+			jpp.pushScope("discretization");
 			jpp.set("AX_NELEM", zElem);
 			jpp.set("RAD_NELEM", rElem);
+			jpp.popScope();
 
 			cadet::test::column::testJacobianAD(jpp, 1e10, std::numeric_limits<float>::epsilon() * 100.0, &flowRate[0]); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
 		}
