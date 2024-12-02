@@ -1,11 +1,6 @@
 name: CD tests
 
 on:
-  push:
-    branches:
-      - master
-      - dev
-  pull_request:
   workflow_dispatch:
     inputs:
       ref:
