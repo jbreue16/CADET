@@ -1150,7 +1150,15 @@ int LumpedRateModelWithPoresDG2D::residual(const SimulationTime& simTime, const 
 template <typename StateType, typename ResidualType, typename ParamType, bool wantJac, bool wantRes>
 int LumpedRateModelWithPoresDG2D::residualImpl(double t, unsigned int secIdx, StateType const* const y, double const* const yDot, ResidualType* const res, util::ThreadLocalStorage& threadLocalMem)
 {
-	if (wantJac) // reset Jacobian
+	if (!_globalJac.isCompressed())
+		int jo = 0;
+
+	// reset Jacobian
+	if (_disc.newStaticJac) // also reset pattern
+	{
+		setGlobalJacPattern(_globalJac);
+	}
+	else if (wantJac)
 	{
 		std::fill_n(_globalJac.valuePtr(), _globalJac.nonZeros(), 0.0);
 	}

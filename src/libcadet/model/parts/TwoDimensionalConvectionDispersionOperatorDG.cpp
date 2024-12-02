@@ -1719,13 +1719,17 @@ void TwoDimensionalConvectionDispersionOperatorDG::convDispJacPattern(std::vecto
 	{
 		for (int rElem = 0; rElem < _radNElem; rElem++)
 		{
-			const int offSetRow = bulkOffset + zElem * _axElemStride + rElem * _radElemStride;
+			/* Axial convection Pattern */
 
-			/* Axial dispersion pattern (which the convection pattern is a subset of) */
+			const int nRightAxElemDep = std::min(2, static_cast<int>(_axNElem) - 1 - zElem); //<! number of right axial elements, this element depends on
+			const int nLeftAxElemDep = std::min(2, zElem); //<! number of left axial elements, this element depends on
+			const int offSetRow = bulkOffset + zElem * _axElemStride + rElem * _radElemStride;
+			const int offSetColumnToRow = -nLeftAxElemDep * _axElemStride;
+
+			addAxElemBlockToJac(-_jacConvection[rElem].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), tripletList, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep);
+
+			/* Axial dispersion Pattern */
 			{
-				const int nRightAxElemDep = std::min(2, static_cast<int>(_axNElem) - 1 - zElem); //<! number of right axial elements, this element depends on
-				const int nLeftAxElemDep = std::min(2, zElem); //<! number of left axial elements, this element depends on
-				const int offSetColumnToRow = -nLeftAxElemDep * _axElemStride;
 				int uAxBlockIdx = zElem; // unique block index
 				if (zElem > 2)
 				{
@@ -1740,7 +1744,7 @@ void TwoDimensionalConvectionDispersionOperatorDG::convDispJacPattern(std::vecto
 				addAxElemBlockToJac(-_jacAxDispersion[rElem * uAxElem + uAxBlockIdx].block(0, Np * (2 - nLeftAxElemDep), Np, Np * (nLeftAxElemDep + 1 + nRightAxElemDep)), tripletList, offSetRow, offSetColumnToRow, nLeftAxElemDep + 1 + nRightAxElemDep);
 			}
 
-			/* Radial dispersion pattern */
+			/* Radial dispersion Pattern */
 			const int nLeftRadElem = std::min(2, rElem);
 			const int nRightRadElem = std::min(2, static_cast<int>(_radNElem) - 1 - rElem);
 			addRadElemBlockToJac(-_jacRadDispersion[rElem], tripletList, offSetRow, nLeftRadElem, nLeftRadElem + 1 + nRightRadElem);
@@ -1829,9 +1833,7 @@ bool TwoDimensionalConvectionDispersionOperatorDG::assembleConvDispJacobian(Eige
 			const int nLeftRadElem = std::min(2, rElem);
 			const int nRightRadElem = std::min(2, static_cast<int>(_radNElem) - 1 - rElem);
 			addRadElemBlockToJac(-_jacRadDispersion[rElem], jacobian, offSetRow, nLeftRadElem, nLeftRadElem + 1 + nRightRadElem);
-
 		}
-
 	}
 
 	return true;
