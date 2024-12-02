@@ -94,19 +94,27 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 				weno["WENO_EPS"] = 1e-10;
 				disc["weno"] = weno;
 			}
+
+			if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
+			{
+				disc["NCOL"] = 8;
+				disc["NRAD"] = 3;
+				disc["NPAR"] = 3;
+				disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
+			}
 		}
 		else if (spatialMethod == "DG")
 		{
 			disc["PAR_EXACT_INTEGRATION"] = 1;
-			disc["PAR_POLYDEG"] = 3;
-			disc["PAR_NELEM"] = 1;
 
 			if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 			{
-				disc["AX_POLYDEG"] = 1;
-				disc["AX_NELEM"] = 1;
+				disc["AX_POLYDEG"] = 2;
+				disc["AX_NELEM"] = 2;
 				disc["RAD_POLYDEG"] = 2;
 				disc["RAD_NELEM"] = 1;
+				disc["PAR_POLYDEG"] = 1;
+				disc["PAR_NELEM"] = 1;
 				disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 			}
 			else
@@ -114,15 +122,9 @@ json createColumnWithSMAJson(const std::string& uoType, const std::string& spati
 				disc["EXACT_INTEGRATION"] = 0;
 				disc["POLYDEG"] = 4;
 				disc["NELEM"] = 2;
+				disc["PAR_POLYDEG"] = 3;
+				disc["PAR_NELEM"] = 1;
 			}
-		}
-
-		if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
-		{
-			disc["NCOL"] = 8;
-			disc["NRAD"] = 3;
-			disc["NPAR"] = 3;
-			disc["RADIAL_DISC_TYPE"] = "EQUIDISTANT";
 		}
 
 		if (uoType == "MULTI_CHANNEL_TRANSPORT")
@@ -384,16 +386,32 @@ json createLWEJson(const std::string& uoType, const std::string& spatialMethod)
 
 				if (uoType.find("_2D") != std::string::npos || uoType.find("2D_") != std::string::npos)
 				{
-					// Connection list is 3x7 since we have 1 connection between
-					// the two unit operations with 3 ports (and we need to have 7 columns)
-					sw["CONNECTIONS"] = {1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 7.42637597e-09,
-					                     1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 2.22791279e-08,
-					                     1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 3.71318798e-08};
-					// Connections: From unit operation 1 port 0
-					//              to unit operation 0 port 0,
-					//              connect component -1 (i.e., all components)
-					//              to component -1 (i.e., all components) with
-					//              volumetric flow rate 7.42637597e-09 m^3/s
+					if (uoType.find("GRM") && !uoType.find("DG"))
+					{
+						// Connection list is 3x7 since we have 1 connection between
+						// the two unit operations with 3 ports (and we need to have 7 columns)
+						sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 7.42637597e-09,
+											  1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 2.22791279e-08,
+											  1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 3.71318798e-08 };
+						// Connections: From unit operation 1 port 0
+						//              to unit operation 0 port 0,
+						//              connect component -1 (i.e., all components)
+						//              to component -1 (i.e., all components) with
+						//              volumetric flow rate 7.42637597e-09 m^3/s
+					}
+					else // DG unit -> needs different flow rates for constant velocity
+					{
+						// Connection list is 3x7 since we have 1 connection between
+						// the two unit operations with 3 ports (and we need to have 7 columns)
+						sw["CONNECTIONS"] = { 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, 2.2743276399659853E-10,
+											  1.0, 0.0, 0.0, 1.0, -1.0, -1.0, 5.458386335918363E-9,
+											  1.0, 0.0, 0.0, 2.0, -1.0, -1.0, 2.5017604039625835E-9 };
+						// Connections: From unit operation 1 port 0
+						//              to unit operation 0 port 0,
+						//              connect component -1 (i.e., all components)
+						//              to component -1 (i.e., all components) with
+						//              volumetric flow rate 7.42637597e-09 m^3/s
+					}
 				}
 				else
 				{

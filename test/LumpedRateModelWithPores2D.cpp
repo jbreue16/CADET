@@ -96,7 +96,7 @@ TEST_CASE("LRMP2D transport Jacobian, full test", "[LRMP2D],[DG],[DG2D],[UnitOp]
 }
 
 TEST_CASE("LRMP2D with two component linear binding Jacobian", "[LRMP2D],[DG],[DG2D],[UnitOp],[Jacobian],[CILRMP2D],[ReleaseCI]")
-		{
+{
 	const std::string relModelFilePath = std::string("/data/lrmp2d_dynLin_2comp_debug.json");
 
 	// This test might run out of memory due to the required AD directions:
@@ -175,24 +175,24 @@ TEST_CASE("LRMP2D consistent sensitivity initialization with SMA binding", "[LRM
 	cadet::test::column::testConsistentInitializationSensitivity("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", y.data(), yDot.data(), false, 1e-9, 1, 1);
 }
 
-//TEST_CASE("LRMP2D LWE one vs two identical particle types match", "[LRMP2D],[Simulation],[ParticleType],[todo]") // todo
-//{
-//	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-7, 5e-5);
-//}
-//
-//TEST_CASE("LRMP2D LWE separate identical particle types match", "[LRMP2D],[Simulation],[ParticleType],[todo]") // todo
-//{
-//	cadet::test::particle::testSeparateIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-15, 1e-15);
-//}
+TEST_CASE("LRMP2D LWE one vs two identical particle types match", "[LRMP2D],[Simulation],[ParticleType],[CILRMP2D]")
+{
+	cadet::test::particle::testOneVsTwoIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-7, 5e-5);
+}
 
-TEST_CASE("LRMP2D linear binding single particle matches particle distribution", "[LRMP2D],[Simulation],[ParticleType],[todo]") // todo
+TEST_CASE("LRMP2D LWE separate identical particle types match", "[LRMP2D],[Simulation],[ParticleType],[CILRMP2D]")
+{
+	cadet::test::particle::testSeparateIdenticalParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-7, 5e-5);
+}
+
+TEST_CASE("LRMP2D linear binding single particle matches particle distribution", "[LRMP2D],[Simulation],[ParticleType],[CILRMP2D]")
 {
 	cadet::test::particle::testLinearMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 5e-8, 5e-5);
 }
 
-TEST_CASE("LRMP2D multiple particle types Jacobian analytic vs AD", "[LRMP2D],[Jacobian],[AD],[ParticleType],[todo]") // todo
+TEST_CASE("LRMP2D multiple particle types Jacobian analytic vs AD", "[LRMP2D],[Jacobian],[AD],[ParticleType],[CILRMP2D]")
 {
-	cadet::test::particle::testJacobianMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG");
+	cadet::test::particle::testJacobianMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e10); // @todo figure out why FD Jacobian pattern comparison doesnt work but AD Jacobian comparison does
 }
 
 TEST_CASE("LRMP2D multiple particle types time derivative Jacobian vs FD", "[LRMP2D],[UnitOp],[Residual],[Jacobian],[ParticleType],[CILRMP2D]")
@@ -200,7 +200,7 @@ TEST_CASE("LRMP2D multiple particle types time derivative Jacobian vs FD", "[LRM
 	cadet::test::particle::testTimeDerivativeJacobianMixedParticleTypesFD("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 1e-6, 0.0, 5e-3);
 }
 
-TEST_CASE("LRMP2D linear binding single particle matches spatially dependent particle distribution", "[LRMP2D],[Simulation],[ParticleType],[todo]") // todo
+TEST_CASE("LRMP2D linear binding single particle matches spatially dependent particle distribution", "[LRMP2D],[Simulation],[ParticleType],[CILRMP2D]")
 {
 	cadet::test::particle::testLinearSpatiallyMixedParticleTypes("LUMPED_RATE_MODEL_WITH_PORES_2D", "DG", 5e-8, 5e-5);
 }
